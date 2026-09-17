@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESP32 GitHub Cloud Hub - แผงควบคุม IoT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sarabun:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-wrapper">
+    <!-- Navbar / Header -->
+    <header class="app-header">
+      <div class="brand-section">
+        <div class="brand-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="2" width="20" height="20" rx="4"></rect>
+            <path d="M7 2v4M17 2v4M2 7h20M2 17h20M7 22v-4M17 22v-4"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">ESP32 GitHub Cloud Hub</h1>
+          <p class="brand-subtitle">IoT Broker & Central Controller via GitHub API</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <div id="device-status-badge" class="status-badge offline">
+          <span class="status-dot"></span>
+          <span id="device-status-text">บอร์ดออฟไลน์</span>
+        </div>
+        <button id="btn-refresh" class="btn-icon" title="รีเฟรชข้อมูลตอนนี้">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+          </svg>
+        </button>
+        <button id="btn-open-settings" class="btn-primary" title="ตั้งค่า GitHub API">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span>ตั้งค่า GitHub</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Info Banner -->
+    <div id="notice-bar" class="notice-bar">
+      <div class="notice-content">
+        <span class="notice-icon">ℹ️</span>
+        <span id="notice-text">กรุณากดปุ่ม <b>"ตั้งค่า GitHub"</b> ด้านบน เพื่อใส่ Token และชื่อ Repository ก่อนเริ่มใช้งาน</span>
+      </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <main class="dashboard-grid">
+      <!-- Section 1: Hardware Controls -->
+      <section class="card control-section">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="card-icon blue">⚡</div>
+            <div>
+              <h2 class="card-title">สวิตช์สั่งงานฮาร์ดแวร์ (Commands)</h2>
+              <p class="card-subtitle">ส่งคำสั่งเปิด-ปิดไปยัง ESP32 ผ่าน GitHub</p>
+            </div>
+          </div>
+          <div class="card-header-right">
+            <span id="sync-indicator" class="sync-indicator">พร้อมทำงาน</span>
+          </div>
+        </div>
+
+        <div class="controls-grid">
+          <!-- Control Item: Relay 1 -->
+          <div class="control-item">
+            <div class="control-info">
+              <div class="control-label">
+                <span class="control-name">รีเลย์ตัวที่ 1 (Relay 1)</span>
+                <span class="control-pin">GPIO 4</span>
+              </div>
+              <span id="relay1-state-label" class="state-text">OFF</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="cmd-relay1">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Control Item: Relay 2 -->
+          <div class="control-item">
+            <div class="control-info">
+              <div class="control-label">
+                <span class="control-name">รีเลย์ตัวที่ 2 (Relay 2)</span>
+                <span class="control-pin">GPIO 5</span>
+              </div>
+              <span id="relay2-state-label" class="state-text">OFF</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="cmd-relay2">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Control Item: LED -->
+          <div class="control-item">
+            <div class="control-info">
+              <div class="control-label">
+                <span class="control-name">ไฟบอร์ด LED (Built-in)</span>
+                <span class="control-pin">GPIO 2</span>
+              </div>
+              <span id="led-state-label" class="state-text">OFF</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="cmd-led">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Control Item: Mode Selector -->
+          <div class="control-item mode-item">
+            <div class="control-info">
+              <div class="control-label">
+                <span class="control-name">โหมดการทำงาน</span>
+                <span class="control-pin">System Mode</span>
+              </div>
+            </div>
+            <div class="segmented-control">
+              <button class="seg-btn active" data-mode="auto" id="btn-mode-auto">Auto</button>
+              <button class="seg-btn" data-mode="manual" id="btn-mode-manual">Manual</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Target Temp Slider -->
+        <div class="slider-control-box">
+          <div class="slider-header">
+            <span class="slider-title">เป้าหมายอุณหภูมิควบคุม (Target Temp)</span>
+            <span class="slider-val" id="target-temp-val">25.0 °C</span>
+          </div>
+          <input type="range" id="cmd-target-temp" min="15" max="40" step="0.5" value="25.0">
+        </div>
+
+        <div class="card-footer-action">
+          <button id="btn-commit-commands" class="btn-action">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+              <polyline points="17 21 17 13 7 13 7 21"></polyline>
+              <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+            <span>บันทึกและส่งคำสั่งทันที (Commit to GitHub)</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Section 2: Sensor & Telemetry -->
+      <section class="card telemetry-section">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="card-icon green">📊</div>
+            <div>
+              <h2 class="card-title">สถานะเซนเซอร์ & บอร์ด (Telemetry)</h2>
+              <p class="card-subtitle">ข้อมูลล่าสุดที่ ESP32 ส่งขึ้นมารายงานบน GitHub</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="metrics-grid">
+          <!-- Temp Card -->
+          <div class="metric-card">
+            <div class="metric-top">
+              <span class="metric-title">อุณหภูมิ</span>
+              <span class="metric-icon">🌡️</span>
+            </div>
+            <div class="metric-val">
+              <span id="tele-temp">--.-</span>
+              <span class="metric-unit">°C</span>
+            </div>
+            <div class="metric-bar-wrapper">
+              <div id="temp-bar" class="metric-bar" style="width: 0%;"></div>
+            </div>
+          </div>
+
+          <!-- Humidity Card -->
+          <div class="metric-card">
+            <div class="metric-top">
+              <span class="metric-title">ความชื้นสัมพัทธ์</span>
+              <span class="metric-icon">💧</span>
+            </div>
+            <div class="metric-val">
+              <span id="tele-humidity">--.-</span>
+              <span class="metric-unit">%</span>
+            </div>
+            <div class="metric-bar-wrapper">
+              <div id="hum-bar" class="metric-bar humidity" style="width: 0%;"></div>
+            </div>
+          </div>
+
+          <!-- WiFi RSSI Card -->
+          <div class="metric-card">
+            <div class="metric-top">
+              <span class="metric-title">สัญญาณ WiFi (RSSI)</span>
+              <span class="metric-icon">📶</span>
+            </div>
+            <div class="metric-val">
+              <span id="tele-rssi">--</span>
+              <span class="metric-unit">dBm</span>
+            </div>
+            <div class="metric-desc" id="tele-rssi-quality">กำลังรอสัญญาณ...</div>
+          </div>
+
+          <!-- Uptime Card -->
+          <div class="metric-card">
+            <div class="metric-top">
+              <span class="metric-title">เวลาทำงาน (Uptime)</span>
+              <span class="metric-icon">⏱️</span>
+            </div>
+            <div class="metric-val small" id="tele-uptime">--</div>
+            <div class="metric-desc" id="tele-ip">IP: --</div>
+          </div>
+        </div>
+
+        <!-- Meta info box -->
+        <div class="telemetry-meta">
+          <div class="meta-row">
+            <span class="meta-key">รายงานล่าสุดเมื่อ (Last Seen):</span>
+            <span class="meta-val" id="tele-last-seen">ยังไม่มีข้อมูล</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-key">Git Commit SHA ปัจจุบัน:</span>
+            <span class="meta-val mono" id="tele-sha">--</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 3: Log / Activity Console -->
+      <section class="card log-section full-width">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="card-icon purple">📜</div>
+            <div>
+              <h2 class="card-title">บันทึกเหตุการณ์การเชื่อมต่อ (Activity Log)</h2>
+              <p class="card-subtitle">ประวัติการดึงและอัปเดตข้อมูลกับ GitHub REST API</p>
+            </div>
+          </div>
+          <div class="card-header-right">
+            <button id="btn-clear-log" class="btn-text">ล้างบันทึก</button>
+          </div>
+        </div>
+        <div class="log-console" id="log-console">
+          <div class="log-entry system">[ระบบเริ่มต้น] กรุณาตั้งค่าเชื่อมต่อ Repository ของคุณ</div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>ESP32 GitHub Cloud Broker &copy; 2026 | พัฒนาสำหรับระบบ IoT แบบไร้เซิร์ฟเวอร์ด้วย GitHub API</p>
+    </footer>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+          </svg>
+          <h3>ตั้งค่าการเชื่อมต่อ GitHub</h3>
+        </div>
+        <button id="btn-close-modal" class="btn-close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="cfg-owner">ชื่อผู้ใช้ GitHub (Repository Owner / Username) <span class="req">*</span></label>
+          <input type="text" id="cfg-owner" placeholder="เช่น your-username" autocomplete="off">
+          <small class="form-help">ชื่อบัญชี GitHub เจ้าของ Repository</small>
+        </div>
+
+        <div class="form-group">
+          <label for="cfg-repo">ชื่อ Repository <span class="req">*</span></label>
+          <input type="text" id="cfg-repo" placeholder="เช่น Server-ESP32" autocomplete="off">
+        </div>
+
+        <div class="form-group">
+          <label for="cfg-branch">ชื่อ Branch</label>
+          <input type="text" id="cfg-branch" placeholder="main" value="main">
+        </div>
+
+        <div class="form-group">
+          <label for="cfg-path">ตำแหน่งไฟล์ State</label>
+          <input type="text" id="cfg-path" placeholder="data/state.json" value="data/state.json">
+        </div>
+
+        <div class="form-group">
+          <label for="cfg-token">GitHub Personal Access Token (PAT) <span class="req">*</span></label>
+          <div class="input-with-action">
+            <input type="password" id="cfg-token" placeholder="ghp_... หรือ github_pat_..." autocomplete="off">
+            <button type="button" id="btn-toggle-token" class="btn-input-icon" title="แสดง/ซ่อน">👁️</button>
+          </div>
+          <small class="form-help">
+            ใช้ Token ที่มีสิทธิ์อ่าน/เขียน (เช่น Scope <code>repo</code> หรือ Fine-grained token สิทธิ์ <code>Contents: Read and write</code>)
+            <br><b>ความปลอดภัย:</b> Token จะถูกจัดเก็บเฉพาะใน <code>localStorage</code> บนบราวเซอร์ของคุณเท่านั้น
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label for="cfg-interval">ความถี่ในการดึงข้อมูลอัตโนมัติ (Polling Interval)</label>
+          <select id="cfg-interval">
+            <option value="5000">ทุกๆ 5 วินาที</option>
+            <option value="10000" selected>ทุกๆ 10 วินาที (แนะนำ)</option>
+            <option value="20000">ทุกๆ 20 วินาที</option>
+            <option value="60000">ทุกๆ 1 นาที</option>
+            <option value="0">ปิดการดึงอัตโนมัติ (ดึงเฉพาะกดปุ่ม)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="btn-test-connection" class="btn-secondary">
+          <span>ทดสอบการเชื่อมต่อ</span>
+        </button>
+        <button id="btn-save-settings" class="btn-primary">
+          <span>บันทึกการตั้งค่า</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

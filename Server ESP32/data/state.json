@@ -1,0 +1,22 @@
+{
+  "commands": {
+    "relay1": false,
+    "relay2": false,
+    "led": true,
+    "mode": "auto",
+    "target_temp": 25.0
+  },
+  "telemetry": {
+    "temperature": 27.8,
+    "humidity": 62.5,
+    "rssi": -65,
+    "uptime_sec": 360,
+    "last_seen": "2026-09-17T23:00:00Z",
+    "ip_address": "192.168.1.150"
+  },
+  "meta": {
+    "version": "1.0.0",
+    "updated_by": "initial_setup",
+    "updated_at": "2026-09-17T23:00:00Z"
+  }
+}
