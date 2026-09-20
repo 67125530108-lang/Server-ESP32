@@ -1,7 +1,7 @@
 {
   "commands": {
     "relay1": false,
-    "relay2": true,
+    "relay2": false,
     "relay3": false,
     "relay4": false,
     "led": false,
@@ -20,6 +20,6 @@
   "meta": {
     "version": "1.0.0",
     "updated_by": "web_dashboard",
-    "updated_at": "2026-09-20T15:36:04.907Z"
+    "updated_at": "2026-09-20T15:36:07.929Z"
   }
 }
