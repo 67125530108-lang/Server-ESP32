@@ -1,6 +1,6 @@
 {
   "commands": {
-    "relay1": true,
+    "relay1": false,
     "relay2": false,
     "relay3": true,
     "relay4": false,
@@ -19,7 +19,7 @@
   },
   "meta": {
     "version": "1.0.0",
-    "updated_by": "ESP32_Device",
-    "updated_at": "2026-09-20T14:26:38Z"
+    "updated_by": "web_dashboard",
+    "updated_at": "2026-09-20T14:26:43.894Z"
   }
 }
