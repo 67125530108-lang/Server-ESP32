@@ -37,6 +37,13 @@
     relay1Label: document.getElementById('relay1-state-label'),
     cmdRelay2: document.getElementById('cmd-relay2'),
     relay2Label: document.getElementById('relay2-state-label'),
+    cmdRelay3: document.getElementById('cmd-relay3'),
+    relay3Label: document.getElementById('relay3-state-label'),
+    cmdRelay4: document.getElementById('cmd-relay4'),
+    relay4Label: document.getElementById('relay4-state-label'),
+    btnTestAllRelays: document.getElementById('btn-test-all-relays'),
+    btnTurnAllOn: document.getElementById('btn-turn-all-on'),
+    btnTurnAllOff: document.getElementById('btn-turn-all-off'),
     cmdLed: document.getElementById('cmd-led'),
     ledLabel: document.getElementById('led-state-label'),
     btnModeAuto: document.getElementById('btn-mode-auto'),
@@ -213,7 +220,7 @@
     }
   }
 
-  async function commitCommands() {
+  async function commitCommands(customCommands = null) {
     if (!config.owner || !config.repo || !config.token) {
       openModal();
       log('กรุณาตั้งค่า GitHub Token ก่อนทำการบันทึก', 'warn');
@@ -228,7 +235,7 @@
       <svg class="spinning" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
       </svg>
-      <span>กำลัง Commit ส่งคำสั่งขึ้น GitHub...</span>
+      <span>กำลังส่งคำสั่งขึ้น GitHub...</span>
     `;
 
     try {
@@ -240,10 +247,13 @@
       // 2. Prepare payload
       const isStandby = el.cmdServerStandby ? el.cmdServerStandby.checked : false;
       const mode = isStandby ? 'standby' : (el.btnModeAuto.classList.contains('active') ? 'auto' : 'manual');
-      const commands = {
+      const commands = customCommands || {
         relay1: isStandby ? false : el.cmdRelay1.checked,
         relay2: isStandby ? false : el.cmdRelay2.checked,
+        relay3: isStandby ? false : (el.cmdRelay3 ? el.cmdRelay3.checked : false),
+        relay4: isStandby ? false : (el.cmdRelay4 ? el.cmdRelay4.checked : false),
         led: isStandby ? false : el.cmdLed.checked,
+        test_relays: false,
         mode: mode,
         target_temp: parseFloat(el.cmdTargetTemp.value)
       };
@@ -271,10 +281,12 @@
       const commitUrl = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${config.path}`;
       const commitMsg = isStandby
         ? 'Dashboard: Put server to Standby (Power & Quota Saving)'
-        : `Dashboard: Update commands (${commands.relay1 ? 'R1:ON' : 'R1:OFF'}, ${commands.relay2 ? 'R2:ON' : 'R2:OFF'}, ${commands.led ? 'LED:ON' : 'LED:OFF'})`;
+        : (commands.test_relays
+            ? 'Dashboard: Run Relay Self-Test Sequence (1-4)'
+            : `Dashboard: Update commands (R1:${commands.relay1 ? 'ON' : 'OFF'}, R2:${commands.relay2 ? 'ON' : 'OFF'}, R3:${commands.relay3 ? 'ON' : 'OFF'}, R4:${commands.relay4 ? 'ON' : 'OFF'}, LED:${commands.led ? 'ON' : 'OFF'})`);
 
       const isSilent = el.chkSilentMode ? el.chkSilentMode.checked : true;
-      const finalCommitMsg = commitMsg + (isSilent ? ' [skip ci] [silent]' : '');
+      const finalCommitMsg = commitMsg + (isSilent ? ' [skip ci] [silent] [no-notify]' : '');
 
       const payload = {
         message: finalCommitMsg,
@@ -285,12 +297,12 @@
 
       if (isSilent) {
         payload.committer = {
-          name: "ESP32 Cloud Bot",
-          email: "noreply@github.com"
+          name: "github-actions[bot]",
+          email: "41898282+github-actions[bot]@users.noreply.github.com"
         };
         payload.author = {
-          name: "ESP32 Cloud Bot",
-          email: "noreply@github.com"
+          name: "github-actions[bot]",
+          email: "41898282+github-actions[bot]@users.noreply.github.com"
         };
       }
 
@@ -371,7 +383,7 @@
 
     // 1. Commands
     if (state.commands) {
-      const { relay1, relay2, led, mode, target_temp } = state.commands;
+      const { relay1, relay2, relay3, relay4, led, mode, target_temp } = state.commands;
 
       el.cmdRelay1.checked = !!relay1;
       el.relay1Label.textContent = relay1 ? 'ON' : 'OFF';
@@ -380,6 +392,18 @@
       el.cmdRelay2.checked = !!relay2;
       el.relay2Label.textContent = relay2 ? 'ON' : 'OFF';
       el.relay2Label.className = `state-text ${relay2 ? 'active' : ''}`;
+
+      if (el.cmdRelay3 && el.relay3Label) {
+        el.cmdRelay3.checked = !!relay3;
+        el.relay3Label.textContent = relay3 ? 'ON' : 'OFF';
+        el.relay3Label.className = `state-text ${relay3 ? 'active' : ''}`;
+      }
+
+      if (el.cmdRelay4 && el.relay4Label) {
+        el.cmdRelay4.checked = !!relay4;
+        el.relay4Label.textContent = relay4 ? 'ON' : 'OFF';
+        el.relay4Label.className = `state-text ${relay4 ? 'active' : ''}`;
+      }
 
       el.cmdLed.checked = !!led;
       el.ledLabel.textContent = led ? 'ON' : 'OFF';
@@ -507,6 +531,19 @@
     if (el.espDesc) el.espDesc.textContent = desc;
   }
 
+  // Helper: ตั้งค่ารีเลย์ทุกช่องพร้อมกัน
+  function setAllRelays(state) {
+    [1, 2, 3, 4].forEach(i => {
+      const chk = el[`cmdRelay${i}`];
+      const lbl = el[`relay${i}Label`];
+      if (chk && lbl) {
+        chk.checked = state;
+        lbl.textContent = state ? 'ON' : 'OFF';
+        lbl.className = `state-text ${state ? 'active' : ''}`;
+      }
+    });
+  }
+
   // =========================================================================
   // Event Listeners
   // =========================================================================
@@ -525,6 +562,63 @@
       el.relay2Label.className = `state-text ${on ? 'active' : ''}`;
       markUncommitted();
     });
+
+    if (el.cmdRelay3) {
+      el.cmdRelay3.addEventListener('change', () => {
+        const on = el.cmdRelay3.checked;
+        el.relay3Label.textContent = on ? 'ON' : 'OFF';
+        el.relay3Label.className = `state-text ${on ? 'active' : ''}`;
+        markUncommitted();
+      });
+    }
+
+    if (el.cmdRelay4) {
+      el.cmdRelay4.addEventListener('change', () => {
+        const on = el.cmdRelay4.checked;
+        el.relay4Label.textContent = on ? 'ON' : 'OFF';
+        el.relay4Label.className = `state-text ${on ? 'active' : ''}`;
+        markUncommitted();
+      });
+    }
+
+    // Quick Actions
+    if (el.btnTurnAllOn) {
+      el.btnTurnAllOn.addEventListener('click', () => {
+        setAllRelays(true);
+        markUncommitted();
+        log('ตั้งค่าเปิดรีเลย์ทั้ง 4 ช่อง (กรุณากดปุ่มบันทึกและส่งคำสั่งเพื่อส่งไปที่บอร์ด)', 'normal');
+      });
+    }
+
+    if (el.btnTurnAllOff) {
+      el.btnTurnAllOff.addEventListener('click', () => {
+        setAllRelays(false);
+        markUncommitted();
+        log('ตั้งค่าปิดรีเลย์ทั้ง 4 ช่อง (กรุณากดปุ่มบันทึกและส่งคำสั่งเพื่อส่งไปที่บอร์ด)', 'normal');
+      });
+    }
+
+    if (el.btnTestAllRelays) {
+      el.btnTestAllRelays.addEventListener('click', async () => {
+        if (!confirm('ต้องการเริ่มทดสอบวงจรรีเลย์ทั้ง 4 ช่อง (เปิด-ปิดทีละช่อง และเปิดพร้อมกัน) ใช่หรือไม่?')) {
+          return;
+        }
+        log('🧪 เริ่มสั่งทดสอบวงจรรีเลย์ 4 ช่อง (Self-Test Sequence)...', 'system');
+        const isStandby = el.cmdServerStandby ? el.cmdServerStandby.checked : false;
+        const mode = isStandby ? 'standby' : (el.btnModeAuto.classList.contains('active') ? 'auto' : 'manual');
+        const testCommands = {
+          relay1: false,
+          relay2: false,
+          relay3: false,
+          relay4: false,
+          led: el.cmdLed.checked,
+          test_relays: true,
+          mode: mode,
+          target_temp: parseFloat(el.cmdTargetTemp.value)
+        };
+        await commitCommands(testCommands);
+      });
+    }
 
     el.cmdLed.addEventListener('change', () => {
       const on = el.cmdLed.checked;
@@ -555,12 +649,7 @@
           el.standbyStateLabel.className = `state-text ${isStandby ? 'standby' : 'active'}`;
         }
         if (isStandby) {
-          el.cmdRelay1.checked = false;
-          el.relay1Label.textContent = 'OFF';
-          el.relay1Label.className = 'state-text';
-          el.cmdRelay2.checked = false;
-          el.relay2Label.textContent = 'OFF';
-          el.relay2Label.className = 'state-text';
+          setAllRelays(false);
           el.cmdLed.checked = false;
           el.ledLabel.textContent = 'OFF';
           el.ledLabel.className = 'state-text';

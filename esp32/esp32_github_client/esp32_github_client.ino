@@ -31,8 +31,11 @@ unsigned long lastTelemetryTime = 0;
 // สถานะคำสั่งปัจจุบัน
 bool stateRelay1 = false;
 bool stateRelay2 = false;
+bool stateRelay3 = false;
+bool stateRelay4 = false;
 bool stateLed = false;
-String stateMode = "auto";
+bool stateTestRelays = false;
+String stateMode = "manual";
 float stateTargetTemp = 25.0;
 
 // เซิร์ฟเวอร์ NTP สำหรับเวลามาตรฐาน
@@ -102,29 +105,69 @@ String getIsoTimestamp() {
 }
 
 // =============================================================================
-// จัดการ Hardware GPIO
+// จัดการ Hardware GPIO (บอร์ดรีเลย์ 4 ช่อง)
 // =============================================================================
 void setupHardware() {
   pinMode(PIN_RELAY_1, OUTPUT);
   pinMode(PIN_RELAY_2, OUTPUT);
+  pinMode(PIN_RELAY_3, OUTPUT);
+  pinMode(PIN_RELAY_4, OUTPUT);
   pinMode(PIN_LED, OUTPUT);
 
-  // ตั้งค่าสถานะเริ่มต้น
+  // ตั้งค่าสถานะเริ่มต้น (ปิดทั้งหมด)
   applyHardwareOutputs();
 }
 
 void applyHardwareOutputs() {
-  // รีเลย์ (คำนึงถึง Active Low / High)
+  // รีเลย์ 4 ช่อง (คำนึงถึง Active Low / High)
   if (RELAY_ACTIVE_LOW) {
     digitalWrite(PIN_RELAY_1, stateRelay1 ? LOW : HIGH);
     digitalWrite(PIN_RELAY_2, stateRelay2 ? LOW : HIGH);
+    digitalWrite(PIN_RELAY_3, stateRelay3 ? LOW : HIGH);
+    digitalWrite(PIN_RELAY_4, stateRelay4 ? LOW : HIGH);
   } else {
     digitalWrite(PIN_RELAY_1, stateRelay1 ? HIGH : LOW);
     digitalWrite(PIN_RELAY_2, stateRelay2 ? HIGH : LOW);
+    digitalWrite(PIN_RELAY_3, stateRelay3 ? HIGH : LOW);
+    digitalWrite(PIN_RELAY_4, stateRelay4 ? HIGH : LOW);
   }
 
   // ไฟ LED บนบอร์ด
   digitalWrite(PIN_LED, stateLed ? HIGH : LOW);
+}
+
+// ฟังก์ชันทดสอบการทำงานของรีเลย์ทั้ง 4 ช่อง (Self-Test Sequence)
+void runRelaySelfTest() {
+  Serial.println("\n>>> [สเต็ป 1] ทดสอบเปิด-ปิดทีละช่อง (1 -> 4) <<<");
+  const int pins[4] = {PIN_RELAY_1, PIN_RELAY_2, PIN_RELAY_3, PIN_RELAY_4};
+
+  for (int i = 0; i < 4; i++) {
+    digitalWrite(pins[i], RELAY_ACTIVE_LOW ? LOW : HIGH);
+    Serial.printf("Relay %d (GPIO %d) -> [ เปิด / ON ]\n", i + 1, pins[i]);
+    delay(1000);
+
+    digitalWrite(pins[i], RELAY_ACTIVE_LOW ? HIGH : LOW);
+    Serial.printf("Relay %d -> [ ปิด / OFF ]\n", i + 1);
+    delay(500);
+  }
+
+  Serial.println("\n>>> [สเต็ป 2] ทดสอบเปิดพร้อมกันทั้งหมด 4 ช่อง <<<");
+  for (int i = 0; i < 4; i++) {
+    digitalWrite(pins[i], RELAY_ACTIVE_LOW ? LOW : HIGH);
+  }
+  Serial.println("เปิดครบทั้ง 4 ช่อง (รอ 2 วินาที)...");
+  delay(2000);
+
+  Serial.println(">>> สั่งปิดพร้อมกันทั้งหมด 4 ช่อง <<<");
+  for (int i = 0; i < 4; i++) {
+    digitalWrite(pins[i], RELAY_ACTIVE_LOW ? HIGH : LOW);
+  }
+  Serial.println("ปิดครบทั้ง 4 ช่อง (รอ 1 วินาที)...");
+  delay(1000);
+
+  // คืนสถานะปัจจุบันตามคำสั่งเดิม
+  applyHardwareOutputs();
+  Serial.println("--- สิ้นสุดการทดสอบรีเลย์ กลับสู่คำสั่งปกติเรียบร้อย ---\n");
 }
 
 // =============================================================================
@@ -230,19 +273,30 @@ void fetchCommandsFromGitHub() {
         // อ่านคำสั่งจาก JSON
         stateRelay1 = stateDoc["commands"]["relay1"] | false;
         stateRelay2 = stateDoc["commands"]["relay2"] | false;
+        stateRelay3 = stateDoc["commands"]["relay3"] | false;
+        stateRelay4 = stateDoc["commands"]["relay4"] | false;
         stateLed = stateDoc["commands"]["led"] | false;
-        stateMode = stateDoc["commands"]["mode"] | "auto";
+        stateTestRelays = stateDoc["commands"]["test_relays"] | false;
+        stateMode = stateDoc["commands"]["mode"] | "manual";
         stateTargetTemp = stateDoc["commands"]["target_temp"] | 25.0;
 
         Serial.println("[GitHub] อัปเดตคำสั่งสำเร็จ:");
         Serial.printf("  > Relay 1: %s (ขา %d)\n", stateRelay1 ? "ON" : "OFF", PIN_RELAY_1);
         Serial.printf("  > Relay 2: %s (ขา %d)\n", stateRelay2 ? "ON" : "OFF", PIN_RELAY_2);
+        Serial.printf("  > Relay 3: %s (ขา %d)\n", stateRelay3 ? "ON" : "OFF", PIN_RELAY_3);
+        Serial.printf("  > Relay 4: %s (ขา %d)\n", stateRelay4 ? "ON" : "OFF", PIN_RELAY_4);
         Serial.printf("  > LED:     %s (ขา %d)\n", stateLed ? "ON" : "OFF", PIN_LED);
         Serial.printf("  > Mode:    %s | Target: %.1f °C\n", stateMode.c_str(), stateTargetTemp);
         Serial.printf("  > Current SHA: %s\n", currentFileSha.substring(0, 7).c_str());
 
-        // ส่งออกไปยังขาฮาร์ดแวร์ทันที
-        applyHardwareOutputs();
+        // หากมีคำสั่งทดสอบรีเลย์ ให้รันฟังก์ชัน Self-Test
+        if (stateTestRelays) {
+          runRelaySelfTest();
+          stateTestRelays = false;
+        } else {
+          // ส่งออกไปยังขาฮาร์ดแวร์ทันที
+          applyHardwareOutputs();
+        }
       } else {
         Serial.printf("[JSON] แปลง State JSON ล้มเหลว: %s\n", stateError.c_str());
       }
@@ -260,6 +314,8 @@ void fetchCommandsFromGitHub() {
 // ส่งสถานะเซนเซอร์และข้อมูลบอร์ดขึ้นไปอัปเดตบน GitHub (Push Telemetry)
 // =============================================================================
 void pushTelemetryToGitHub() {
+  // หากตั้งค่าปิดส่งอัตโนมัติ (ENABLE_AUTO_TELEMETRY_PUSH = false) จะไม่สร้าง Commit เพื่อป้องกันอีเมลแจ้งเตือน
+  if (!ENABLE_AUTO_TELEMETRY_PUSH) return;
   if (WiFi.status() != WL_CONNECTED) return;
   if (currentFileSha.length() == 0) {
     Serial.println("[GitHub] ยังไม่มี SHA ปัจจุบัน จะดึงข้อมูลก่อนส่งอัปเดต...");
@@ -284,7 +340,10 @@ void pushTelemetryToGitHub() {
   JsonObject commands = rootDoc["commands"].to<JsonObject>();
   commands["relay1"] = stateRelay1;
   commands["relay2"] = stateRelay2;
+  commands["relay3"] = stateRelay3;
+  commands["relay4"] = stateRelay4;
   commands["led"] = stateLed;
+  commands["test_relays"] = false;
   commands["mode"] = stateMode;
   commands["target_temp"] = stateTargetTemp;
 
@@ -308,20 +367,20 @@ void pushTelemetryToGitHub() {
   serializeJsonPretty(rootDoc, jsonOutput);
   String encodedOutput = base64Encode(jsonOutput);
 
-  // สร้าง Payload สำหรับ GitHub PUT Request
+  // สร้าง Payload สำหรับ GitHub PUT Request (ระบุบอทและข้อความ [skip ci] [silent] ป้องกันอีเมลเตือน 100%)
   #if ARDUINOJSON_VERSION_MAJOR >= 7
     JsonDocument putDoc;
   #else
     DynamicJsonDocument putDoc(8192);
   #endif
 
-  putDoc["message"] = "ESP32: Update telemetry & heartbeat (" + nowIso + ") [skip ci] [silent]";
+  putDoc["message"] = "ESP32: Update telemetry & heartbeat (" + nowIso + ") [skip ci] [silent] [no-notify]";
   JsonObject committer = putDoc["committer"].to<JsonObject>();
-  committer["name"] = "ESP32 Cloud Bot";
-  committer["email"] = "noreply@github.com";
+  committer["name"] = "github-actions[bot]";
+  committer["email"] = "41898282+github-actions[bot]@users.noreply.github.com";
   JsonObject author = putDoc["author"].to<JsonObject>();
-  author["name"] = "ESP32 Cloud Bot";
-  author["email"] = "noreply@github.com";
+  author["name"] = "github-actions[bot]";
+  author["email"] = "41898282+github-actions[bot]@users.noreply.github.com";
 
   putDoc["content"] = encodedOutput;
   putDoc["sha"] = currentFileSha;
@@ -418,8 +477,8 @@ void loop() {
     fetchCommandsFromGitHub();
   }
 
-  // รอบส่งสถานะเซนเซอร์ (Push Telemetry)
-  if (currentMillis - lastTelemetryTime >= PUSH_TELEMETRY_INTERVAL_MS) {
+  // รอบส่งสถานะเซนเซอร์ (Push Telemetry - ทำงานเฉพาะเมื่อเปิด ENABLE_AUTO_TELEMETRY_PUSH)
+  if (ENABLE_AUTO_TELEMETRY_PUSH && (currentMillis - lastTelemetryTime >= PUSH_TELEMETRY_INTERVAL_MS)) {
     lastTelemetryTime = currentMillis;
     pushTelemetryToGitHub();
   }

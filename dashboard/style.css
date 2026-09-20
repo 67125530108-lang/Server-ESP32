@@ -370,9 +370,88 @@ body {
   font-family: 'JetBrains Mono', monospace;
 }
 
-/* ==========================================================================
-   Controls Section
-   ========================================================================== */
+/* Quick Relay Controls */
+.quick-relay-bar {
+  background: rgba(14, 165, 233, 0.08);
+  border: 1px solid rgba(14, 165, 233, 0.2);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.quick-relay-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #38bdf8;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.quick-buttons-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-quick {
+  flex: 1;
+  min-width: 100px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: var(--transition-fast);
+}
+
+.btn-quick:hover {
+  transform: translateY(-1px);
+}
+
+.btn-quick.test {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(147, 51, 234, 0.35));
+  border-color: rgba(168, 85, 247, 0.4);
+  color: #e9d5ff;
+}
+
+.btn-quick.test:hover {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.4), rgba(147, 51, 234, 0.5));
+  box-shadow: 0 4px 12px rgba(147, 51, 234, 0.3);
+}
+
+.btn-quick.on {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #6ee7b7;
+}
+
+.btn-quick.on:hover {
+  background: rgba(16, 185, 129, 0.25);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+}
+
+.btn-quick.off {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+}
+
+.btn-quick.off:hover {
+  background: rgba(239, 68, 68, 0.22);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+}
+
 .controls-grid {
   display: flex;
   flex-direction: column;

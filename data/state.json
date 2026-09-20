@@ -2,7 +2,10 @@
   "commands": {
     "relay1": false,
     "relay2": false,
+    "relay3": false,
+    "relay4": false,
     "led": false,
+    "test_relays": false,
     "mode": "manual",
     "target_temp": 25
   },

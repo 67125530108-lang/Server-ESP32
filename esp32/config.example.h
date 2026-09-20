@@ -20,24 +20,28 @@
 #define GITHUB_TOKEN    "ghp_YOUR_PERSONAL_ACCESS_TOKEN_HERE"
 
 // =============================================================================
-// การกำหนดขาต่อฮาร์ดแวร์ (GPIO Pins)
+// การกำหนดขาต่อฮาร์ดแวร์ (GPIO Pins) - บอร์ด ESP32-Relay-X4 (4 ช่อง)
 // =============================================================================
-#define PIN_RELAY_1     4     // ขาควบคุม Relay 1
-#define PIN_RELAY_2     5     // ขาควบคุม Relay 2
-#define PIN_LED         2     // ขาไฟ LED บนบอร์ด ESP32 (Built-in LED ส่วนใหญ่คือ GPIO 2)
-#define PIN_DHT_SENSOR  15    // ขาต่อเซนเซอร์อุณหภูมิและความชื้น (ถ้ามี)
+#define PIN_RELAY_1     32    // ขาควบคุม Relay 1 (K1)
+#define PIN_RELAY_2     33    // ขาควบคุม Relay 2 (K2)
+#define PIN_RELAY_3     25    // ขาควบคุม Relay 3 (K3)
+#define PIN_RELAY_4     26    // ขาควบคุม Relay 4 (K4)
+#define PIN_LED         2     // ขาไฟ LED บนบอร์ด ESP32 (Built-in LED)
+#define PIN_DHT_SENSOR  15    // ขาต่อเซนเซอร์อุณหภูมิและความชื้น (เตรียมไว้ในอนาคต)
 
-// รีเลย์ทำงานแบบ Active LOW หรือ Active HIGH (บอร์ดรีเลย์ส่วนใหญ่เป็น Active LOW = ส่ง LOW คือเปิด)
-#define RELAY_ACTIVE_LOW true
+// ระดับสัญญาณควบคุมรีเลย์ (บอร์ดนี้เป็นแบบ Active HIGH: ส่ง HIGH คือเปิด, LOW คือปิด)
+#define RELAY_ACTIVE_LOW false
 
 // =============================================================================
-// รอบเวลาการทำงาน (มิลลิวินาที)
+// รอบเวลาการทำงาน & การส่งข้อมูล (มิลลิวินาที)
 // =============================================================================
-// ดึงคำสั่งใหม่จาก GitHub ทุกๆ 10 วินาที
-#define POLL_COMMANDS_INTERVAL_MS   10000 
+// ดึงคำสั่งใหม่จาก GitHub ทุกๆ 5-10 วินาที
+#define POLL_COMMANDS_INTERVAL_MS   5000 
 
-// ส่งข้อมูลเซนเซอร์และสถานะ (Telemetry) ขึ้นไปอัปเดตบน GitHub ทุกๆ 30 วินาที
-// (แนะนำ 30-60 วินาที เพื่อประหยัด GitHub API Rate Limit และไม่สร้าง commit ถี่เกินไป)
-#define PUSH_TELEMETRY_INTERVAL_MS  30000 
+// ปิดการส่ง Telemetry Commit อัตโนมัติเพื่อป้องกันอีเมลแจ้งเตือนและการเกิด Commit ซ้ำซ้อน
+#define ENABLE_AUTO_TELEMETRY_PUSH  false
+
+// ส่งข้อมูลเซนเซอร์และสถานะขึ้น GitHub (ใช้เฉพาะเมื่อเปิด ENABLE_AUTO_TELEMETRY_PUSH เป็น true)
+#define PUSH_TELEMETRY_INTERVAL_MS  60000 
 
 #endif // CONFIG_H

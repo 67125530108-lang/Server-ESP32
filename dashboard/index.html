@@ -78,13 +78,31 @@
           </div>
         </div>
 
+        <!-- Quick Actions & Relay Testing Bar -->
+        <div class="quick-relay-bar">
+          <div class="quick-relay-title">
+            <span>⚡ จัดการรีเลย์ด่วน (Quick Actions)</span>
+          </div>
+          <div class="quick-buttons-row">
+            <button id="btn-test-all-relays" class="btn-quick test" title="ทดสอบวงจรรีเลย์ 4 ช่องตามสเต็ป (วนทีละตัว และเปิดพร้อมกัน)">
+              <span>🧪 ทดสอบรีเลย์ทุกตัว</span>
+            </button>
+            <button id="btn-turn-all-on" class="btn-quick on" title="สั่งเปิดรีเลย์ทั้ง 4 ช่องพร้อมกัน">
+              <span>⚡ เปิดหมด</span>
+            </button>
+            <button id="btn-turn-all-off" class="btn-quick off" title="สั่งปิดรีเลย์ทั้ง 4 ช่องพร้อมกัน">
+              <span>⚪ ปิดหมด</span>
+            </button>
+          </div>
+        </div>
+
         <div class="controls-grid">
           <!-- Control Item: Relay 1 -->
           <div class="control-item">
             <div class="control-info">
               <div class="control-label">
-                <span class="control-name">รีเลย์ตัวที่ 1 (Relay 1)</span>
-                <span class="control-pin">GPIO 4</span>
+                <span class="control-name">รีเลย์ตัวที่ 1 (Relay 1 - K1)</span>
+                <span class="control-pin">GPIO 32</span>
               </div>
               <span id="relay1-state-label" class="state-text">OFF</span>
             </div>
@@ -98,13 +116,43 @@
           <div class="control-item">
             <div class="control-info">
               <div class="control-label">
-                <span class="control-name">รีเลย์ตัวที่ 2 (Relay 2)</span>
-                <span class="control-pin">GPIO 5</span>
+                <span class="control-name">รีเลย์ตัวที่ 2 (Relay 2 - K2)</span>
+                <span class="control-pin">GPIO 33</span>
               </div>
               <span id="relay2-state-label" class="state-text">OFF</span>
             </div>
             <label class="toggle-switch">
               <input type="checkbox" id="cmd-relay2">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Control Item: Relay 3 -->
+          <div class="control-item">
+            <div class="control-info">
+              <div class="control-label">
+                <span class="control-name">รีเลย์ตัวที่ 3 (Relay 3 - K3)</span>
+                <span class="control-pin">GPIO 25</span>
+              </div>
+              <span id="relay3-state-label" class="state-text">OFF</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="cmd-relay3">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- Control Item: Relay 4 -->
+          <div class="control-item">
+            <div class="control-info">
+              <div class="control-label">
+                <span class="control-name">รีเลย์ตัวที่ 4 (Relay 4 - K4)</span>
+                <span class="control-pin">GPIO 26</span>
+              </div>
+              <span id="relay4-state-label" class="state-text">OFF</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="cmd-relay4">
               <span class="slider"></span>
             </label>
           </div>
@@ -129,12 +177,12 @@
             <div class="control-info">
               <div class="control-label">
                 <span class="control-name">โหมดการทำงาน</span>
-                <span class="control-pin">System Mode</span>
+                <span class="control-pin">Auto (รองรับเซนเซอร์ในอนาคต) / Manual</span>
               </div>
             </div>
             <div class="segmented-control">
-              <button class="seg-btn active" data-mode="auto" id="btn-mode-auto">Auto</button>
-              <button class="seg-btn" data-mode="manual" id="btn-mode-manual">Manual</button>
+              <button class="seg-btn" data-mode="auto" id="btn-mode-auto" title="โหมดอัตโนมัติ (จะเริ่มทำงานเมื่อมีการเชื่อมต่อเซนเซอร์ในอนาคต)">Auto</button>
+              <button class="seg-btn active" data-mode="manual" id="btn-mode-manual">Manual</button>
             </div>
           </div>
 
