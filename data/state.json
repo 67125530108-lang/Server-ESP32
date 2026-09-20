@@ -5,21 +5,21 @@
     "relay3": false,
     "relay4": false,
     "led": false,
-    "test_relays": true,
+    "test_relays": false,
     "mode": "manual",
     "target_temp": 25
   },
   "telemetry": {
-    "temperature": 27.9,
-    "humidity": 62.7,
+    "temperature": 28.3,
+    "humidity": 60.2,
     "rssi": -65,
-    "uptime_sec": 45,
-    "last_seen": "2026-09-20T09:52:03Z",
+    "uptime_sec": 108,
+    "last_seen": "2026-09-20T09:53:06Z",
     "ip_address": "192.168.1.168"
   },
   "meta": {
     "version": "1.0.0",
-    "updated_by": "web_dashboard",
-    "updated_at": "2026-09-20T09:52:33.619Z"
+    "updated_by": "ESP32_Device",
+    "updated_at": "2026-09-20T09:53:06Z"
   }
 }
