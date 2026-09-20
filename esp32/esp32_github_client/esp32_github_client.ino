@@ -15,6 +15,8 @@
 #include <ArduinoJson.h>
 #include <mbedtls/base64.h>
 #include <time.h>
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
 
 // ตรวจสอบไฟล์การตั้งค่า
 #if __has_include("config.h")
@@ -105,9 +107,28 @@ String getIsoTimestamp() {
 }
 
 // =============================================================================
+// =============================================================================
 // จัดการ Hardware GPIO (บอร์ดรีเลย์ 4 ช่อง)
 // =============================================================================
+// ฟังก์ชันช่วยสั่งงานขาพินรีเลย์ตามระดับสัญญาณ Active Low / High
+void writeRelayPin(int pin, bool state) {
+  if (RELAY_ACTIVE_LOW) {
+    digitalWrite(pin, state ? LOW : HIGH);
+  } else {
+    digitalWrite(pin, state ? HIGH : LOW);
+  }
+}
+
+// ตัวแปรเก็บสถานะปัจจุบันที่ขาฮาร์ดแวร์ทำงานอยู่จริง
+static bool currentHwR1 = false;
+static bool currentHwR2 = false;
+static bool currentHwR3 = false;
+static bool currentHwR4 = false;
+
 void setupHardware() {
+  // ปิด Brownout Detector ป้องกันชิปรีเซ็ตเมื่อรีเลย์ 4 ตัวดึงกระแสไฟพร้อมกัน
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+
   pinMode(PIN_RELAY_1, OUTPUT);
   pinMode(PIN_RELAY_2, OUTPUT);
   pinMode(PIN_RELAY_3, OUTPUT);
@@ -115,57 +136,80 @@ void setupHardware() {
   pinMode(PIN_LED, OUTPUT);
 
   // ตั้งค่าสถานะเริ่มต้น (ปิดทั้งหมด)
-  applyHardwareOutputs();
+  writeRelayPin(PIN_RELAY_1, false);
+  writeRelayPin(PIN_RELAY_2, false);
+  writeRelayPin(PIN_RELAY_3, false);
+  writeRelayPin(PIN_RELAY_4, false);
+  digitalWrite(PIN_LED, LOW);
 }
 
 void applyHardwareOutputs() {
-  // รีเลย์ 4 ช่อง (คำนึงถึง Active Low / High)
-  if (RELAY_ACTIVE_LOW) {
-    digitalWrite(PIN_RELAY_1, stateRelay1 ? LOW : HIGH);
-    digitalWrite(PIN_RELAY_2, stateRelay2 ? LOW : HIGH);
-    digitalWrite(PIN_RELAY_3, stateRelay3 ? LOW : HIGH);
-    digitalWrite(PIN_RELAY_4, stateRelay4 ? LOW : HIGH);
-  } else {
-    digitalWrite(PIN_RELAY_1, stateRelay1 ? HIGH : LOW);
-    digitalWrite(PIN_RELAY_2, stateRelay2 ? HIGH : LOW);
-    digitalWrite(PIN_RELAY_3, stateRelay3 ? HIGH : LOW);
-    digitalWrite(PIN_RELAY_4, stateRelay4 ? HIGH : LOW);
+  // ควบคุมรีเลย์แบบ Soft-Start หน่วงเวลาเรียงตัว 80ms (Staggered Activation)
+  // เพื่อป้องกันกระแสไฟกระชาก (Inrush Current) ทำให้แรงดันไฟ 5V/3.3V ตกจนบอร์ดรีเซ็ต
+  if (stateRelay1 != currentHwR1) {
+    writeRelayPin(PIN_RELAY_1, stateRelay1);
+    currentHwR1 = stateRelay1;
+    if (stateRelay1) delay(80);
+  }
+
+  if (stateRelay2 != currentHwR2) {
+    writeRelayPin(PIN_RELAY_2, stateRelay2);
+    currentHwR2 = stateRelay2;
+    if (stateRelay2) delay(80);
+  }
+
+  if (stateRelay3 != currentHwR3) {
+    writeRelayPin(PIN_RELAY_3, stateRelay3);
+    currentHwR3 = stateRelay3;
+    if (stateRelay3) delay(80);
+  }
+
+  if (stateRelay4 != currentHwR4) {
+    writeRelayPin(PIN_RELAY_4, stateRelay4);
+    currentHwR4 = stateRelay4;
+    if (stateRelay4) delay(80);
   }
 
   // ไฟ LED บนบอร์ด
   digitalWrite(PIN_LED, stateLed ? HIGH : LOW);
 }
 
-// ฟังก์ชันทดสอบการทำงานของรีเลย์ทั้ง 4 ช่อง (Self-Test Sequence)
+// ฟังก์ชันทดสอบการทำงานของรีเลย์ทั้ง 4 ช่อง (Self-Test Sequence แบบ Soft-Start)
 void runRelaySelfTest() {
   Serial.println("\n>>> [สเต็ป 1] ทดสอบเปิด-ปิดทีละช่อง (1 -> 4) <<<");
   const int pins[4] = {PIN_RELAY_1, PIN_RELAY_2, PIN_RELAY_3, PIN_RELAY_4};
 
   for (int i = 0; i < 4; i++) {
-    digitalWrite(pins[i], RELAY_ACTIVE_LOW ? LOW : HIGH);
+    writeRelayPin(pins[i], true);
     Serial.printf("Relay %d (GPIO %d) -> [ เปิด / ON ]\n", i + 1, pins[i]);
     delay(1000);
 
-    digitalWrite(pins[i], RELAY_ACTIVE_LOW ? HIGH : LOW);
+    writeRelayPin(pins[i], false);
     Serial.printf("Relay %d -> [ ปิด / OFF ]\n", i + 1);
-    delay(500);
+    delay(400);
   }
 
-  Serial.println("\n>>> [สเต็ป 2] ทดสอบเปิดพร้อมกันทั้งหมด 4 ช่อง <<<");
+  Serial.println("\n>>> [สเต็ป 2] ทดสอบเปิดพร้อมกัน 4 ช่อง (เปิดแบบ Soft-Start ทีละตัว 80ms) <<<");
   for (int i = 0; i < 4; i++) {
-    digitalWrite(pins[i], RELAY_ACTIVE_LOW ? LOW : HIGH);
+    writeRelayPin(pins[i], true);
+    delay(80); // หน่วง 80ms ป้องกันกระแสไฟกระชาก
   }
-  Serial.println("เปิดครบทั้ง 4 ช่อง (รอ 2 วินาที)...");
+  Serial.println("เปิดครบทั้ง 4 ช่องแล้ว (รอ 2 วินาที)...");
   delay(2000);
 
   Serial.println(">>> สั่งปิดพร้อมกันทั้งหมด 4 ช่อง <<<");
   for (int i = 0; i < 4; i++) {
-    digitalWrite(pins[i], RELAY_ACTIVE_LOW ? HIGH : LOW);
+    writeRelayPin(pins[i], false);
+    delay(30);
   }
   Serial.println("ปิดครบทั้ง 4 ช่อง (รอ 1 วินาที)...");
   delay(1000);
 
   // คืนสถานะปัจจุบันตามคำสั่งเดิม
+  currentHwR1 = !stateRelay1; // บังคับให้อัปเดตสถานะเดิม
+  currentHwR2 = !stateRelay2;
+  currentHwR3 = !stateRelay3;
+  currentHwR4 = !stateRelay4;
   applyHardwareOutputs();
   Serial.println("--- สิ้นสุดการทดสอบรีเลย์ กลับสู่คำสั่งปกติเรียบร้อย ---\n");
 }

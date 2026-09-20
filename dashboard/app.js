@@ -52,8 +52,6 @@
     standbyStateLabel: document.getElementById('standby-state-label'),
     cmdTargetTemp: document.getElementById('cmd-target-temp'),
     targetTempVal: document.getElementById('target-temp-val'),
-    btnCommit: document.getElementById('btn-commit-commands'),
-    btnReadOnlyRefresh: document.getElementById('btn-read-only-refresh'),
     chkSilentMode: document.getElementById('chk-silent-mode'),
     silentModeLabel: document.getElementById('silent-mode-label'),
 
@@ -220,23 +218,37 @@
     }
   }
 
+  let autoCommitTimer = null;
+  function scheduleAutoCommit(customCommands = null) {
+    if (el.syncIndicator) {
+      el.syncIndicator.textContent = '⚡ กำลังส่งคำสั่ง...';
+      el.syncIndicator.style.color = '#38bdf8';
+    }
+    clearTimeout(autoCommitTimer);
+    autoCommitTimer = setTimeout(async () => {
+      await commitCommands(customCommands);
+    }, 120);
+  }
+
   async function commitCommands(customCommands = null) {
     if (!config.owner || !config.repo || !config.token) {
       openModal();
-      log('กรุณาตั้งค่า GitHub Token ก่อนทำการบันทึก', 'warn');
+      log('กรุณาตั้งค่า GitHub Token ก่อนทำการสั่งงาน', 'warn');
       return;
     }
 
-    if (isCommitting) return;
+    if (isCommitting) {
+      // หากกำลังส่งอยู่ ให้ส่งคำสั่งล่าสุดตามไปอีกรอบ
+      clearTimeout(autoCommitTimer);
+      autoCommitTimer = setTimeout(() => commitCommands(customCommands), 300);
+      return;
+    }
     isCommitting = true;
 
-    el.btnCommit.disabled = true;
-    el.btnCommit.innerHTML = `
-      <svg class="spinning" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
-      </svg>
-      <span>กำลังส่งคำสั่งขึ้น GitHub...</span>
-    `;
+    if (el.syncIndicator) {
+      el.syncIndicator.textContent = '⚡ กำลังส่งคำสั่งเรียลไทม์...';
+      el.syncIndicator.style.color = '#38bdf8';
+    }
 
     try {
       // 1. Ensure we have the latest SHA
@@ -283,7 +295,7 @@
         ? 'Dashboard: Put server to Standby (Power & Quota Saving)'
         : (commands.test_relays
             ? 'Dashboard: Run Relay Self-Test Sequence (1-4)'
-            : `Dashboard: Update commands (R1:${commands.relay1 ? 'ON' : 'OFF'}, R2:${commands.relay2 ? 'ON' : 'OFF'}, R3:${commands.relay3 ? 'ON' : 'OFF'}, R4:${commands.relay4 ? 'ON' : 'OFF'}, LED:${commands.led ? 'ON' : 'OFF'})`);
+            : `Dashboard: Quick Toggle (R1:${commands.relay1 ? 'ON' : 'OFF'}, R2:${commands.relay2 ? 'ON' : 'OFF'}, R3:${commands.relay3 ? 'ON' : 'OFF'}, R4:${commands.relay4 ? 'ON' : 'OFF'}, LED:${commands.led ? 'ON' : 'OFF'})`);
 
       const isSilent = el.chkSilentMode ? el.chkSilentMode.checked : true;
       const finalCommitMsg = commitMsg + (isSilent ? ' [skip ci] [silent] [no-notify]' : '');
@@ -324,8 +336,12 @@
       currentSha = resData.content.sha;
       currentState = updatedState;
 
-      log(`ส่งคำสั่งขึ้น GitHub สำเร็จ! Commit SHA: ${currentSha.substring(0, 7)}`, 'success');
-      el.syncIndicator.textContent = `บันทึกคำสั่งสำเร็จ (${new Date().toLocaleTimeString('th-TH')})`;
+      const timeStr = new Date().toLocaleTimeString('th-TH');
+      log(`สั่งการสำเร็จ: ${commitMsg} (SHA: ${currentSha.substring(0, 7)})`, 'success');
+      if (el.syncIndicator) {
+        el.syncIndicator.textContent = `🟢 คำสั่งทำงานแล้ว (${timeStr})`;
+        el.syncIndicator.style.color = '#34d399';
+      }
 
       if (isStandby) {
         if (pollIntervalId) {
@@ -342,19 +358,14 @@
     } catch (err) {
       console.error(err);
       log(`ล้มเหลวในการส่งคำสั่ง: ${err.message}`, 'error');
+      if (el.syncIndicator) {
+        el.syncIndicator.textContent = '❌ ส่งคำสั่งไม่สำเร็จ';
+        el.syncIndicator.style.color = '#f87171';
+      }
       // Retry fetching state to re-sync SHA
       await fetchState();
     } finally {
       isCommitting = false;
-      el.btnCommit.disabled = false;
-      el.btnCommit.innerHTML = `
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-          <polyline points="17 21 17 13 7 13 7 21"></polyline>
-          <polyline points="7 3 7 8 15 8"></polyline>
-        </svg>
-        <span>บันทึกและส่งคำสั่งทันที (Commit to GitHub)</span>
-      `;
     }
   }
 
@@ -548,19 +559,19 @@
   // Event Listeners
   // =========================================================================
   function bindEvents() {
-    // Switch Toggles
+    // Switch Toggles (ส่งคำสั่งทันทีแบบเรียลไทม์)
     el.cmdRelay1.addEventListener('change', () => {
       const on = el.cmdRelay1.checked;
       el.relay1Label.textContent = on ? 'ON' : 'OFF';
       el.relay1Label.className = `state-text ${on ? 'active' : ''}`;
-      markUncommitted();
+      scheduleAutoCommit();
     });
 
     el.cmdRelay2.addEventListener('change', () => {
       const on = el.cmdRelay2.checked;
       el.relay2Label.textContent = on ? 'ON' : 'OFF';
       el.relay2Label.className = `state-text ${on ? 'active' : ''}`;
-      markUncommitted();
+      scheduleAutoCommit();
     });
 
     if (el.cmdRelay3) {
@@ -568,7 +579,7 @@
         const on = el.cmdRelay3.checked;
         el.relay3Label.textContent = on ? 'ON' : 'OFF';
         el.relay3Label.className = `state-text ${on ? 'active' : ''}`;
-        markUncommitted();
+        scheduleAutoCommit();
       });
     }
 
@@ -577,7 +588,7 @@
         const on = el.cmdRelay4.checked;
         el.relay4Label.textContent = on ? 'ON' : 'OFF';
         el.relay4Label.className = `state-text ${on ? 'active' : ''}`;
-        markUncommitted();
+        scheduleAutoCommit();
       });
     }
 
@@ -585,24 +596,21 @@
     if (el.btnTurnAllOn) {
       el.btnTurnAllOn.addEventListener('click', () => {
         setAllRelays(true);
-        markUncommitted();
-        log('ตั้งค่าเปิดรีเลย์ทั้ง 4 ช่อง (กรุณากดปุ่มบันทึกและส่งคำสั่งเพื่อส่งไปที่บอร์ด)', 'normal');
+        scheduleAutoCommit();
+        log('สั่งเปิดรีเลย์ทั้ง 4 ช่องทันที', 'normal');
       });
     }
 
     if (el.btnTurnAllOff) {
       el.btnTurnAllOff.addEventListener('click', () => {
         setAllRelays(false);
-        markUncommitted();
-        log('ตั้งค่าปิดรีเลย์ทั้ง 4 ช่อง (กรุณากดปุ่มบันทึกและส่งคำสั่งเพื่อส่งไปที่บอร์ด)', 'normal');
+        scheduleAutoCommit();
+        log('สั่งปิดรีเลย์ทั้ง 4 ช่องทันที', 'normal');
       });
     }
 
     if (el.btnTestAllRelays) {
       el.btnTestAllRelays.addEventListener('click', async () => {
-        if (!confirm('ต้องการเริ่มทดสอบวงจรรีเลย์ทั้ง 4 ช่อง (เปิด-ปิดทีละช่อง และเปิดพร้อมกัน) ใช่หรือไม่?')) {
-          return;
-        }
         log('🧪 เริ่มสั่งทดสอบวงจรรีเลย์ 4 ช่อง (Self-Test Sequence)...', 'system');
         const isStandby = el.cmdServerStandby ? el.cmdServerStandby.checked : false;
         const mode = isStandby ? 'standby' : (el.btnModeAuto.classList.contains('active') ? 'auto' : 'manual');
@@ -624,20 +632,20 @@
       const on = el.cmdLed.checked;
       el.ledLabel.textContent = on ? 'ON' : 'OFF';
       el.ledLabel.className = `state-text ${on ? 'active' : ''}`;
-      markUncommitted();
+      scheduleAutoCommit();
     });
 
     // Mode Buttons
     el.btnModeAuto.addEventListener('click', () => {
       el.btnModeAuto.classList.add('active');
       el.btnModeManual.classList.remove('active');
-      markUncommitted();
+      scheduleAutoCommit();
     });
 
     el.btnModeManual.addEventListener('click', () => {
       el.btnModeManual.classList.add('active');
       el.btnModeAuto.classList.remove('active');
-      markUncommitted();
+      scheduleAutoCommit();
     });
 
     // Server Standby Switch
@@ -658,41 +666,25 @@
             clearInterval(pollIntervalId);
             pollIntervalId = null;
           }
-          el.syncIndicator.textContent = '⏸️ โหมดพักเซิร์ฟเวอร์เปิดอยู่ (กดปุ่มบันทึกเพื่อส่งคำสั่ง)';
-          log('เปิดโหมดพักเซิร์ฟเวอร์ (Standby): กรุณากดปุ่มบันทึกเพื่อส่งคำสั่งพักระบบขึ้น GitHub', 'warn');
+          el.syncIndicator.textContent = '⏸️ เซิร์ฟเวอร์พักการทำงาน (Standby)';
+          log('เปิดโหมดพักเซิร์ฟเวอร์ (Standby)', 'warn');
         } else {
           setupPolling();
-          el.syncIndicator.textContent = '🟢 เซิร์ฟเวอร์ทำงานปกติ (กดปุ่มบันทึกเพื่อส่งคำสั่ง)';
-          log('ปิดโหมดพักเซิร์ฟเวอร์: กลับสู่การทำงานปกติ กรุณากดปุ่มบันทึกเพื่ออัปเดตสถานะ', 'system');
+          el.syncIndicator.textContent = '🟢 เซิร์ฟเวอร์ทำงานปกติ';
+          log('ปิดโหมดพักเซิร์ฟเวอร์: กลับสู่การทำงานปกติ', 'system');
         }
-        markUncommitted();
+        scheduleAutoCommit();
       });
     }
 
     // Target Temp Slider
+    el.cmdTargetTemp.addEventListener('change', (e) => {
+      el.targetTempVal.textContent = `${parseFloat(e.target.value).toFixed(1)} °C`;
+      scheduleAutoCommit();
+    });
     el.cmdTargetTemp.addEventListener('input', (e) => {
       el.targetTempVal.textContent = `${parseFloat(e.target.value).toFixed(1)} °C`;
-      markUncommitted();
     });
-
-    // Commit Action (บันทึกและส่งคำสั่ง)
-    el.btnCommit.addEventListener('click', () => {
-      commitCommands();
-    });
-
-    // Read-Only Refresh Action (ดึงค่ามาแสดงผลอย่างเดียว ไม่ส่ง Commit / ไม่ส่งเมล)
-    if (el.btnReadOnlyRefresh) {
-      el.btnReadOnlyRefresh.addEventListener('click', async () => {
-        const svg = el.btnReadOnlyRefresh.querySelector('svg');
-        if (svg) svg.classList.add('spinning');
-        el.syncIndicator.textContent = '🔄 กำลังดึงข้อมูลล่าสุด...';
-        log('ดึงข้อมูลล่าสุดจากเซิร์ฟเวอร์มาแสดงผล (โหมดอ่านอย่างเดียว ไม่สร้าง Commit / ไม่ส่งอีเมล)', 'system');
-        await fetchState();
-        setTimeout(() => {
-          if (svg) svg.classList.remove('spinning');
-        }, 500);
-      });
-    }
 
     // Silent Mode Toggle Listener
     if (el.chkSilentMode) {
