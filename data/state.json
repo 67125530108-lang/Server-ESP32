@@ -7,16 +7,16 @@
     "target_temp": 25
   },
   "telemetry": {
-    "temperature": 28.5,
-    "humidity": 61.6,
+    "temperature": 26.9,
+    "humidity": 63.4,
     "rssi": -69,
-    "uptime_sec": 660,
-    "last_seen": "2026-09-20T08:23:22Z",
+    "uptime_sec": 690,
+    "last_seen": "2026-09-20T08:23:52Z",
     "ip_address": "192.168.1.167"
   },
   "meta": {
     "version": "1.0.0",
     "updated_by": "ESP32_Device",
-    "updated_at": "2026-09-20T08:23:22Z"
+    "updated_at": "2026-09-20T08:23:52Z"
   }
 }
