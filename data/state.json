@@ -4,7 +4,7 @@
     "relay2": true,
     "relay3": false,
     "relay4": false,
-    "led": true,
+    "led": false,
     "test_relays": false,
     "mode": "manual",
     "target_temp": 25
@@ -20,6 +20,6 @@
   "meta": {
     "version": "1.0.0",
     "updated_by": "web_dashboard",
-    "updated_at": "2026-09-20T09:42:57.992Z"
+    "updated_at": "2026-09-20T09:43:02.979Z"
   }
 }
