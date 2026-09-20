@@ -1,6 +1,6 @@
 {
   "commands": {
-    "relay1": false,
+    "relay1": true,
     "relay2": false,
     "relay3": false,
     "relay4": false,
@@ -20,6 +20,6 @@
   "meta": {
     "version": "1.0.0",
     "updated_by": "web_dashboard",
-    "updated_at": "2026-09-20T18:18:59.567Z"
+    "updated_at": "2026-09-20T18:19:05.595Z"
   }
 }
