@@ -522,9 +522,8 @@ void setup() {
   // 2. หน่วงเวลาสั้นๆ 150ms เพื่อให้แรงดันไฟจากอะแดปเตอร์เสถียร
   delay(150);
 
-  // 3. เริ่มต้น Serial โดยไม่บล็อกการทำงาน (ไม่ค้างเมื่อไม่ได้ต่อสาย TX/RX หรือไม่ได้เปิด Serial Monitor)
+  // 3. เริ่มต้น Serial (ไม่จำเป็นต้องเปิด Serial Monitor บอร์ดก็ทำงานได้ตามปกติ)
   Serial.begin(115200);
-  Serial.setTxTimeoutMs(0); // Non-blocking Serial output
 
   Serial.println("\n==========================================");
   Serial.println("   ESP32 GitHub Cloud Client เริ่มทำงาน    ");
