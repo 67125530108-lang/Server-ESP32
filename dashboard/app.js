@@ -9,7 +9,7 @@
   // State
   const STORAGE_KEY = 'esp32_github_config_v1';
   const DEFAULT_CONFIG = {
-    owner: '67125530108-lang',
+    owner: 'smart-iot-Th',
     repo: 'Server-ESP32',
     branch: 'main',
     path: 'data/state.json',
@@ -148,9 +148,9 @@
       config.repo = 'Server-ESP32';
     }
 
-    // Auto-fix: owner ต้องเป็น 67125530108-lang
-    if (!config.owner) {
-      config.owner = '67125530108-lang';
+    // Auto-fix: owner ต้องเป็น smart-iot-Th
+    if (!config.owner || config.owner === '67125530108-lang') {
+      config.owner = 'smart-iot-Th';
     }
 
     // บันทึกค่าที่ถูกแก้ไขถูกต้องกลับลง localStorage ทันที
