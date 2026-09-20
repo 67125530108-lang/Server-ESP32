@@ -112,6 +112,7 @@ body {
   letter-spacing: -0.02em;
   background: linear-gradient(120deg, #ffffff 40%, #bae6fd 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -541,6 +542,7 @@ input:checked+.slider:before {
 
 input[type="range"] {
   -webkit-appearance: none;
+  appearance: none;
   width: 100%;
   height: 6px;
   border-radius: 5px;
