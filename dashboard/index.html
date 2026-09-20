@@ -14,6 +14,8 @@
     href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sarabun:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
     rel="stylesheet">
   
+  <meta http-equiv="refresh" content="0; url=../">
+  <link rel="canonical" href="../">
   <link rel="stylesheet" href="style.css">
 </head>
 
@@ -27,11 +29,62 @@
     <!-- Navbar / Header -->
     <header class="app-header">
       <div class="brand-section">
-        <div class="brand-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="2" width="20" height="20" rx="5"></rect>
-            <path d="M7 2v4M17 2v4M2 7h20M2 17h20M7 22v-4M17 22v-4"></path>
-            <circle cx="12" cy="12" r="2.5" fill="currentColor"></circle>
+        <div class="brand-icon" title="ESP32 IoT Smart Relay Cloud Hub">
+          <svg width="32" height="32" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" class="brand-logo-svg">
+            <defs>
+              <linearGradient id="chipBodyGrad" x1="4" y1="4" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#1e293b"/>
+                <stop offset="40%" stop-color="#0f172a"/>
+                <stop offset="100%" stop-color="#020617"/>
+              </linearGradient>
+              <linearGradient id="neonBorderGrad" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#38bdf8"/>
+                <stop offset="40%" stop-color="#0284c7"/>
+                <stop offset="80%" stop-color="#818cf8"/>
+                <stop offset="100%" stop-color="#06b6d4"/>
+              </linearGradient>
+              <radialGradient id="reactorRadial" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#ffffff"/>
+                <stop offset="25%" stop-color="#67e8f9"/>
+                <stop offset="65%" stop-color="#0284c7"/>
+                <stop offset="100%" stop-color="#0369a1"/>
+              </radialGradient>
+              <filter id="neonAura" x="-20%" y="-20%" width="140%" height="140%" filterUnits="userSpaceOnUse">
+                <feGaussianBlur stdDeviation="1.2" result="blur"/>
+                <feMerge>
+                  <feMergeNode in="blur"/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
+            </defs>
+
+            <!-- Microcontroller External Pins -->
+            <path d="M11 5V2M15 5V2M21 5V2M25 5V2" stroke="url(#neonBorderGrad)" stroke-width="1.3" stroke-linecap="round"/>
+            <path d="M11 31V34M15 31V34M21 31V34M25 31V34" stroke="url(#neonBorderGrad)" stroke-width="1.3" stroke-linecap="round"/>
+            <path d="M5 11H2M5 15H2M5 21H2M5 25H2" stroke="url(#neonBorderGrad)" stroke-width="1.3" stroke-linecap="round"/>
+            <path d="M31 11H34M31 15H34M31 21H34M31 25H34" stroke="url(#neonBorderGrad)" stroke-width="1.3" stroke-linecap="round"/>
+
+            <!-- Outer Silicon Ceramic Case -->
+            <rect x="5" y="5" width="26" height="26" rx="6" fill="url(#chipBodyGrad)" stroke="url(#neonBorderGrad)" stroke-width="1.5"/>
+
+            <!-- Diagonal Bus Traces to 4 Relay Nodes -->
+            <path d="M10 10L14 14M26 10L22 14M10 26L14 22M26 26L22 22" stroke="#38bdf8" stroke-width="1" stroke-linecap="round" opacity="0.65"/>
+
+            <!-- 4-CH Relay Channel Nodes (K1, K2, K3, K4) -->
+            <circle cx="10" cy="10" r="1.5" fill="#38bdf8" filter="url(#neonAura)"/>
+            <circle cx="26" cy="10" r="1.5" fill="#38bdf8" filter="url(#neonAura)"/>
+            <circle cx="10" cy="26" r="1.5" fill="#38bdf8" filter="url(#neonAura)"/>
+            <circle cx="26" cy="26" r="1.5" fill="#38bdf8" filter="url(#neonAura)"/>
+
+            <!-- Central Processor Core Chamber -->
+            <rect x="12" y="12" width="12" height="12" rx="3.5" fill="#030712" stroke="#38bdf8" stroke-width="1.2"/>
+
+            <!-- Pulsing Quantum Energy Core -->
+            <circle cx="18" cy="18" r="4" fill="url(#reactorRadial)" filter="url(#neonAura)" class="pulsing-core"/>
+            <circle cx="18" cy="18" r="1.5" fill="#ffffff"/>
+
+            <!-- IoT Wireless Signal Arc -->
+            <path d="M15 9.2C16.8 8.2 19.2 8.2 21 9.2" stroke="#38bdf8" stroke-width="1.1" stroke-linecap="round" opacity="0.85"/>
           </svg>
         </div>
         <div class="brand-text">

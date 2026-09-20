@@ -15,8 +15,11 @@
 #include <ArduinoJson.h>
 #include <mbedtls/base64.h>
 #include <time.h>
+#include <esp_task_wdt.h>
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
+
+#define WDT_TIMEOUT_SEC 30
 
 // ตรวจสอบไฟล์การตั้งค่า
 #if __has_include("config.h")
@@ -126,8 +129,8 @@ static bool currentHwR3 = false;
 static bool currentHwR4 = false;
 
 void setupHardware() {
-  // ปิด Brownout Detector ป้องกันชิปรีเซ็ตเมื่อรีเลย์ 4 ตัวดึงกระแสไฟพร้อมกัน
-  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+  // ตั้งค่าดึงขา GPIO 0 (Boot Strapping Pin) เป็น INPUT_PULLUP ป้องกันการลอย (Float) เวลาถอดสายโปรแกรม TX/RX
+  pinMode(0, INPUT_PULLUP);
 
   pinMode(PIN_RELAY_1, OUTPUT);
   pinMode(PIN_RELAY_2, OUTPUT);
@@ -228,8 +231,10 @@ void connectWiFi() {
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 30) {
-    delay(500);
+  while (WiFi.status() != WL_CONNECTED && attempts < 40) {
+    delay(250);
+    // ไฟ LED กะพริบเร็วขณะกำลังเชื่อมต่อ Wi-Fi (สังเกตได้แม้ไม่ได้ต่อ Serial Monitor)
+    digitalWrite(PIN_LED, (attempts % 2 == 0) ? HIGH : LOW);
     Serial.print(".");
     attempts++;
   }
@@ -241,8 +246,17 @@ void connectWiFi() {
     // ซิงค์เวลาจาก NTP Server
     configTime(0, 0, ntpServer1, ntpServer2);
     Serial.println("[NTP] กำลังซิงค์เวลามาตรฐาน...");
+
+    // กระพริบ 3 ครั้งสั้นๆ แสดงว่าเชื่อมต่อ Wi-Fi สำเร็จสมบูรณ์แล้ว
+    for (int i = 0; i < 3; i++) {
+      digitalWrite(PIN_LED, HIGH);
+      delay(70);
+      digitalWrite(PIN_LED, LOW);
+      delay(70);
+    }
   } else {
     Serial.println("\n[WiFi] เชื่อมต่อไม่สำเร็จ จะลองใหม่ในรอบถัดไป");
+    digitalWrite(PIN_LED, LOW);
   }
 }
 
@@ -481,33 +495,85 @@ void pushTelemetryToGitHub() {
 }
 
 // =============================================================================
+// ระบบ Watchdog Timer ป้องกันระบบค้าง
+// =============================================================================
+void initWatchdog() {
+  #if defined(ESP_ARDUINO_VERSION_MAJOR) && (ESP_ARDUINO_VERSION_MAJOR >= 3)
+    esp_task_wdt_config_t twdt_config = {
+      .timeout_ms = WDT_TIMEOUT_SEC * 1000,
+      .idle_core_mask = 0,
+      .trigger_panic = true
+    };
+    esp_task_wdt_reconfigure(&twdt_config);
+    esp_task_wdt_add(NULL);
+  #else
+    esp_task_wdt_init(WDT_TIMEOUT_SEC, true);
+    esp_task_wdt_add(NULL);
+  #endif
+}
+
+// =============================================================================
 // Arduino Setup & Main Loop
 // =============================================================================
 void setup() {
+  // 1. ปิด Brownout Detector ทันทีเป็นคำสั่งแรกสุด ป้องกันไฟตกช่วงเสียบอะแดปเตอร์ทำให้ชิปรีเซ็ต
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+
+  // 2. หน่วงเวลาสั้นๆ 150ms เพื่อให้แรงดันไฟจากอะแดปเตอร์เสถียร
+  delay(150);
+
+  // 3. เริ่มต้น Serial โดยไม่บล็อกการทำงาน (ไม่ค้างเมื่อไม่ได้ต่อสาย TX/RX หรือไม่ได้เปิด Serial Monitor)
   Serial.begin(115200);
-  delay(1000);
+  Serial.setTxTimeoutMs(0); // Non-blocking Serial output
 
   Serial.println("\n==========================================");
   Serial.println("   ESP32 GitHub Cloud Client เริ่มทำงาน    ");
   Serial.println("==========================================");
 
+  // 4. ติดตั้งฮาร์ดแวร์รีเลย์และ GPIO 0 Pullup
   setupHardware();
+
+  // 5. ติดตั้งระบบ Watchdog Timer ป้องกันค้าง
+  initWatchdog();
+
+  // 6. เชื่อมต่อ Wi-Fi
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
   WiFi.persistent(true);
   WiFi.setSleep(false);
   connectWiFi();
 
-  // ดึงคำสั่งครั้งแรกทันทีที่เปิดเครื่อง
+  // 7. ดึงคำสั่งครั้งแรกทันทีที่เปิดเครื่อง
   fetchCommandsFromGitHub();
 
-  // ส่งรายงานตัว Heartbeat ครั้งแรกทันทีเพื่อให้หน้าเว็บขึ้นออนไลน์ทันทีที่เปิดบอร์ด
+  // 8. ส่งรายงานตัว Heartbeat ครั้งแรกทันทีเพื่อให้หน้าเว็บขึ้นออนไลน์
   if (ENABLE_AUTO_TELEMETRY_PUSH) {
     pushTelemetryToGitHub();
   }
 }
 
 void loop() {
+  // รีเซ็ต Watchdog Timer เสมอ
+  esp_task_wdt_reset();
+
+  // ไฟสถานะชีวจิต Heartbeat LED (กระพริบสั้นๆ แสดงการทำงานเมื่อต่อแค่ไฟเลี้ยง ไม่ได้ต่อจอ Serial Monitor)
+  static unsigned long lastHeartbeatLed = 0;
+  if (WiFi.status() == WL_CONNECTED) {
+    unsigned long now = millis();
+    if (now - lastHeartbeatLed >= 2500) {
+      lastHeartbeatLed = now;
+      if (!stateLed) { // หากไม่ได้สั่งเปิดไฟค้างไว้จากหน้าเว็บ ให้กะพริบจังหวะชีพจร
+        digitalWrite(PIN_LED, HIGH);
+        delay(25);
+        digitalWrite(PIN_LED, LOW);
+        delay(60);
+        digitalWrite(PIN_LED, HIGH);
+        delay(25);
+        digitalWrite(PIN_LED, LOW);
+      }
+    }
+  }
+
   // ตรวจสอบและเชื่อมต่อ WiFi ซ้ำหากหลุด (แบบ Non-blocking ไม่ทำให้การทำงานอื่นหยุดชะงัก)
   if (WiFi.status() != WL_CONNECTED) {
     static unsigned long lastWifiReconnect = 0;
@@ -532,5 +598,5 @@ void loop() {
     pushTelemetryToGitHub();
   }
 
-  delay(100);
+  delay(50);
 }
