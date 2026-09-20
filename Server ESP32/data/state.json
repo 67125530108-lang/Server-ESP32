@@ -1,0 +1,25 @@
+{
+  "commands": {
+    "relay1": false,
+    "relay2": false,
+    "relay3": false,
+    "relay4": false,
+    "led": false,
+    "test_relays": false,
+    "mode": "standby",
+    "target_temp": 25
+  },
+  "telemetry": {
+    "temperature": 0,
+    "humidity": 0,
+    "rssi": 0,
+    "uptime_sec": 0,
+    "last_seen": "2026-09-20T14:17:39.119Z",
+    "ip_address": "unknown"
+  },
+  "meta": {
+    "version": "1.0.0",
+    "updated_by": "web_dashboard",
+    "updated_at": "2026-09-20T14:17:39.119Z"
+  }
+}
