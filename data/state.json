@@ -6,7 +6,7 @@
     "relay4": false,
     "led": false,
     "test_relays": false,
-    "mode": "standby",
+    "mode": "auto",
     "target_temp": 25
   },
   "telemetry": {
@@ -20,6 +20,6 @@
   "meta": {
     "version": "1.0.0",
     "updated_by": "web_dashboard",
-    "updated_at": "2026-09-20T18:18:50.721Z"
+    "updated_at": "2026-09-20T18:18:59.567Z"
   }
 }
