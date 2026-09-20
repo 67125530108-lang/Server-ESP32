@@ -268,6 +268,10 @@
 
       const jsonStr = JSON.stringify(updatedState, null, 2);
       const encodedContent = encodeBase64Utf8(jsonStr);
+      const commitUrl = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${config.path}`;
+      const commitMsg = isStandby
+        ? 'Dashboard: Put server to Standby (Power & Quota Saving)'
+        : `Dashboard: Update commands (${commands.relay1 ? 'R1:ON' : 'R1:OFF'}, ${commands.relay2 ? 'R2:ON' : 'R2:OFF'}, ${commands.led ? 'LED:ON' : 'LED:OFF'})`;
 
       const isSilent = el.chkSilentMode ? el.chkSilentMode.checked : true;
       const finalCommitMsg = commitMsg + (isSilent ? ' [skip ci] [silent]' : '');
