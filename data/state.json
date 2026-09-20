@@ -5,7 +5,7 @@
     "relay3": false,
     "relay4": false,
     "led": false,
-    "test_relays": false,
+    "test_relays": true,
     "mode": "manual",
     "target_temp": 25
   },
@@ -19,7 +19,7 @@
   },
   "meta": {
     "version": "1.0.0",
-    "updated_by": "ESP32_Device",
-    "updated_at": "2026-09-20T10:03:10Z"
+    "updated_by": "web_dashboard",
+    "updated_at": "2026-09-20T10:03:21.855Z"
   }
 }
