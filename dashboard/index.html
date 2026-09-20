@@ -471,7 +471,8 @@
 
         <div class="form-group">
           <label for="cfg-repo">ชื่อ Repository <span class="req">*</span></label>
-          <input type="text" id="cfg-repo" placeholder="เช่น Server-ESP32" autocomplete="off">
+          <input type="text" id="cfg-repo" placeholder="เช่น Server-ESP32" value="Server-ESP32" autocomplete="off">
+          <small class="form-help">ชื่อ Repository บน GitHub: <code>Server-ESP32</code> (มีขีดกลาง)</small>
         </div>
 
         <div class="form-group">
@@ -482,6 +483,7 @@
         <div class="form-group">
           <label for="cfg-path">ตำแหน่งไฟล์ State</label>
           <input type="text" id="cfg-path" placeholder="data/state.json" value="data/state.json">
+          <small class="form-help">ตำแหน่งไฟล์บน GitHub: <code>data/state.json</code> (ไม่ต้องมีคำว่า Server ESP32 นำหน้า)</small>
         </div>
 
         <div class="form-group">

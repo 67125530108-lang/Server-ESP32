@@ -8,14 +8,16 @@
 
   // State
   const STORAGE_KEY = 'esp32_github_config_v1';
-  let config = {
-    owner: '',
-    repo: '',
+  const DEFAULT_CONFIG = {
+    owner: '67125530108-lang',
+    repo: 'Server-ESP32',
     branch: 'main',
     path: 'data/state.json',
     token: '',
-    interval: 10000
+    interval: 5000
   };
+
+  let config = { ...DEFAULT_CONFIG };
 
   let currentState = null;
   let currentSha = null;
@@ -110,13 +112,12 @@
     loadConfig();
     bindEvents();
 
-    if (config.owner && config.repo && config.token) {
-      el.noticeBar.style.display = 'none';
-      log('ตรวจพบการตั้งค่าแล้ว กำลังเริ่มเชื่อมต่อ GitHub API...', 'system');
+    if (config.owner && config.repo) {
+      if (config.token && el.noticeBar) el.noticeBar.style.display = 'none';
+      log(`กำลังเชื่อมต่อ GitHub API (${config.owner}/${config.repo})...`, 'system');
       fetchState();
       setupPolling();
     } else {
-      // Load local sample state if available for offline demo
       tryLocalFallback();
     }
   }
@@ -125,45 +126,65 @@
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
-        config = { ...config, ...JSON.parse(saved) };
+        const parsed = JSON.parse(saved);
+        config = { ...DEFAULT_CONFIG, ...parsed };
       } catch (e) {
         console.error('Failed to parse saved config', e);
       }
     }
 
-    // Auto-detect GitHub username and repo name from GitHub Pages URL if not set
-    if (!config.owner && window.location.hostname.endsWith('.github.io')) {
-      config.owner = window.location.hostname.split('.')[0];
-    }
-    if (!config.repo && window.location.hostname.endsWith('.github.io')) {
-      const pathSegments = window.location.pathname.split('/').filter(Boolean);
-      if (pathSegments.length > 0 && pathSegments[0] !== 'dashboard') {
-        config.repo = decodeURIComponent(pathSegments[0]);
+    // Auto-fix: แก้ไขและลบชื่อโฟลเดอร์เครื่อง "Server ESP32/" ที่อาจปนเปื้อนมา
+    if (config.path) {
+      config.path = config.path.replace(/^Server[\s_-]*ESP32\/?/i, '').trim();
+      if (!config.path || config.path.includes('Server ESP32')) {
+        config.path = 'data/state.json';
       }
+    } else {
+      config.path = 'data/state.json';
     }
 
+    // Auto-fix: ชื่อ repo ต้องเป็น Server-ESP32
+    if (!config.repo || config.repo === 'Server ESP32' || config.repo.includes('Server ESP32')) {
+      config.repo = 'Server-ESP32';
+    }
+
+    // Auto-fix: owner ต้องเป็น 67125530108-lang
+    if (!config.owner) {
+      config.owner = '67125530108-lang';
+    }
+
+    // บันทึกค่าที่ถูกแก้ไขถูกต้องกลับลง localStorage ทันที
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+
     // Fill modal fields with detected/saved values or defaults
-    el.cfgOwner.value = config.owner || '67125530108-lang';
-    el.cfgRepo.value = config.repo || 'Server-ESP32';
+    el.cfgOwner.value = config.owner;
+    el.cfgRepo.value = config.repo;
     el.cfgBranch.value = config.branch || 'main';
-    el.cfgPath.value = config.path || 'data/state.json';
+    el.cfgPath.value = config.path;
     el.cfgToken.value = config.token || '';
-    el.cfgInterval.value = config.interval !== undefined ? config.interval : '10000';
+    el.cfgInterval.value = config.interval !== undefined ? config.interval : '5000';
   }
 
   function saveConfig() {
-    config.owner = el.cfgOwner.value.trim();
-    config.repo = el.cfgRepo.value.trim();
+    config.owner = el.cfgOwner.value.trim() || DEFAULT_CONFIG.owner;
+    let repoVal = el.cfgRepo.value.trim() || DEFAULT_CONFIG.repo;
+    if (repoVal === 'Server ESP32' || repoVal.includes('Server ESP32')) repoVal = 'Server-ESP32';
+    config.repo = repoVal;
     config.branch = el.cfgBranch.value.trim() || 'main';
-    config.path = el.cfgPath.value.trim() || 'data/state.json';
+
+    let pathVal = el.cfgPath.value.trim() || 'data/state.json';
+    pathVal = pathVal.replace(/^Server[\s_-]*ESP32\/?/i, '').trim();
+    if (!pathVal || pathVal.includes('Server ESP32')) pathVal = 'data/state.json';
+    config.path = pathVal;
+
     config.token = el.cfgToken.value.trim();
-    config.interval = parseInt(el.cfgInterval.value, 10);
+    config.interval = parseInt(el.cfgInterval.value, 10) || 5000;
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
     log('บันทึกการตั้งค่า GitHub สำเร็จ', 'success');
 
     el.modal.classList.remove('active');
-    el.noticeBar.style.display = 'none';
+    if (config.token && el.noticeBar) el.noticeBar.style.display = 'none';
 
     setupPolling();
     fetchState();
@@ -200,9 +221,19 @@
 
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
-          throw new Error(`การยืนยันตัวตนล้มเหลว (${res.status}) ตรวจสอบสิทธิ์ GitHub Token`);
+          throw new Error(`การยืนยันตัวตนล้มเหลว (${res.status}) กรุณาตรวจสอบสิทธิ์ GitHub Token ในหน้าต่างตั้งค่า`);
         } else if (res.status === 404) {
-          throw new Error(`ไม่พบไฟล์ ${config.path} หรือชื่อ Repository ไม่ถูกต้อง`);
+          // หากพาธผิด ให้แก้ไขเป็น data/state.json ให้อัตโนมัติทันที
+          if (config.path !== 'data/state.json' || config.repo !== 'Server-ESP32') {
+            log(`ตรวจพบพาธไฟล์ ${config.path} ไม่ถูกต้อง กำลังปรับเป็น data/state.json ให้อัตโนมัติ...`, 'warn');
+            config.path = 'data/state.json';
+            config.repo = 'Server-ESP32';
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+            if (el.cfgPath) el.cfgPath.value = 'data/state.json';
+            if (el.cfgRepo) el.cfgRepo.value = 'Server-ESP32';
+            return await fetchState();
+          }
+          throw new Error(`ไม่พบไฟล์ ${config.path} บน Repository ${config.owner}/${config.repo}`);
         } else {
           throw new Error(`GitHub API ตอบกลับสถานะ ${res.status}: ${res.statusText}`);
         }
