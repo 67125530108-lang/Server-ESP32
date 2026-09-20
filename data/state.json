@@ -2,7 +2,7 @@
   "commands": {
     "relay1": true,
     "relay2": true,
-    "relay3": false,
+    "relay3": true,
     "relay4": false,
     "led": false,
     "test_relays": false,
@@ -19,7 +19,7 @@
   },
   "meta": {
     "version": "1.0.0",
-    "updated_by": "ESP32_Device",
-    "updated_at": "2026-09-20T09:26:21Z"
+    "updated_by": "web_dashboard",
+    "updated_at": "2026-09-20T09:26:32.102Z"
   }
 }
