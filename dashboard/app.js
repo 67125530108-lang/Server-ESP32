@@ -46,6 +46,9 @@
     cmdTargetTemp: document.getElementById('cmd-target-temp'),
     targetTempVal: document.getElementById('target-temp-val'),
     btnCommit: document.getElementById('btn-commit-commands'),
+    btnReadOnlyRefresh: document.getElementById('btn-read-only-refresh'),
+    chkSilentMode: document.getElementById('chk-silent-mode'),
+    silentModeLabel: document.getElementById('silent-mode-label'),
 
     // Telemetry
     teleTemp: document.getElementById('tele-temp'),
@@ -266,17 +269,26 @@
       const jsonStr = JSON.stringify(updatedState, null, 2);
       const encodedContent = encodeBase64Utf8(jsonStr);
 
-      const commitUrl = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${config.path}`;
-      const commitMsg = isStandby
-        ? 'Dashboard: Put server to Standby (Power & Quota Saving)'
-        : `Dashboard: Update commands (${commands.relay1 ? 'R1:ON' : 'R1:OFF'}, ${commands.relay2 ? 'R2:ON' : 'R2:OFF'}, ${commands.led ? 'LED:ON' : 'LED:OFF'})`;
+      const isSilent = el.chkSilentMode ? el.chkSilentMode.checked : true;
+      const finalCommitMsg = commitMsg + (isSilent ? ' [skip ci] [silent]' : '');
 
       const payload = {
-        message: commitMsg,
+        message: finalCommitMsg,
         content: encodedContent,
         sha: currentSha,
         branch: config.branch
       };
+
+      if (isSilent) {
+        payload.committer = {
+          name: "ESP32 Cloud Bot",
+          email: "noreply@github.com"
+        };
+        payload.author = {
+          name: "ESP32 Cloud Bot",
+          email: "noreply@github.com"
+        };
+      }
 
       const res = await fetch(commitUrl, {
         method: 'PUT',
@@ -402,20 +414,20 @@
     }
 
     // 2. Telemetry & ESP32 Live Verification
-    const isESP32Origin = state.meta && state.meta.updated_by === 'ESP32_Device';
+    // ตรวจสอบจาก telemetry.last_seen เป็นหลัก (ไม่ตัดการเชื่อมต่อเมื่อ Dashboard ทำการบันทึกคำสั่ง)
     const hasLastSeen = !!(state.telemetry && state.telemetry.last_seen);
 
-    if (hasLastSeen && isESP32Origin) {
+    if (hasLastSeen) {
       const { temperature, humidity, rssi, uptime_sec, last_seen, ip_address } = state.telemetry;
       const lastSeenDate = new Date(last_seen);
       el.teleLastSeen.textContent = lastSeenDate.toLocaleString('th-TH');
 
       const diffSeconds = (Date.now() - lastSeenDate.getTime()) / 1000;
 
-      // ESP32 ส่ง Telemetry ทุกๆ 30 วินาที หากส่งมาภายใน 60 วินาที = ออนไลน์อยู่จริง
-      if (diffSeconds <= 60) {
+      // ESP32 ส่ง Telemetry ทุกๆ 30-60 วินาที ให้ Threshold เป็น 90 วินาทีเพื่อความเสถียร ไม่หลุดบ่อย
+      if (diffSeconds <= 90) {
         setDeviceOnline(true, `ESP32 ออนไลน์ (${Math.max(1, Math.round(diffSeconds))} วิที่แล้ว)`);
-        setEspBanner('online', '🟢', 'บอร์ด ESP32 ออนไลน์และส่งข้อมูลแบบ Real-time',
+        setEspBanner('online', '🟢', 'บอร์ด ESP32 ออนไลน์และส่งข้อมูลปกติ',
           `เชื่อมต่อกับ GitHub สำเร็จ ล่าสุดเมื่อ ${Math.max(1, Math.round(diffSeconds))} วินาทีที่แล้ว (${lastSeenDate.toLocaleTimeString('th-TH')})`);
       } else {
         setDeviceOnline(false, `ESP32 ออฟไลน์ (${formatTimeDiff(diffSeconds)})`);
@@ -570,12 +582,39 @@
       markUncommitted();
     });
 
-    // Commit Action
+    // Commit Action (บันทึกและส่งคำสั่ง)
     el.btnCommit.addEventListener('click', () => {
       commitCommands();
     });
 
-    // Refresh Action
+    // Read-Only Refresh Action (ดึงค่ามาแสดงผลอย่างเดียว ไม่ส่ง Commit / ไม่ส่งเมล)
+    if (el.btnReadOnlyRefresh) {
+      el.btnReadOnlyRefresh.addEventListener('click', async () => {
+        const svg = el.btnReadOnlyRefresh.querySelector('svg');
+        if (svg) svg.classList.add('spinning');
+        el.syncIndicator.textContent = '🔄 กำลังดึงข้อมูลล่าสุด...';
+        log('ดึงข้อมูลล่าสุดจากเซิร์ฟเวอร์มาแสดงผล (โหมดอ่านอย่างเดียว ไม่สร้าง Commit / ไม่ส่งอีเมล)', 'system');
+        await fetchState();
+        setTimeout(() => {
+          if (svg) svg.classList.remove('spinning');
+        }, 500);
+      });
+    }
+
+    // Silent Mode Toggle Listener
+    if (el.chkSilentMode) {
+      el.chkSilentMode.addEventListener('change', () => {
+        const isSilent = el.chkSilentMode.checked;
+        if (el.silentModeLabel) {
+          el.silentModeLabel.textContent = isSilent
+            ? '🔕 ส่งแบบเงียบ (Silent Mode - ไม่แจ้งเตือนเข้าอีเมล)'
+            : '🔔 ส่งพร้อมแจ้งเตือนปกติ (อาจมีอีเมลจาก GitHub)';
+        }
+        log(isSilent ? 'เปิดโหมดส่งแบบเงียบ (ไม่ส่งอีเมลแจ้งเตือน)' : 'ปิดโหมดส่งแบบเงียบ (จะส่งแจ้งเตือนตามปกติ)', 'normal');
+      });
+    }
+
+    // Header Refresh Action
     el.btnRefresh.addEventListener('click', () => {
       fetchState();
     });

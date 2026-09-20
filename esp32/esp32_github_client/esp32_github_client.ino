@@ -135,6 +135,9 @@ void connectWiFi() {
 
   Serial.printf("[WiFi] กำลังเชื่อมต่อไปยัง SSID: %s ", WIFI_SSID);
   WiFi.mode(WIFI_STA);
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(true);
+  WiFi.setSleep(false); // ปิด Modem Sleep เพื่อให้รับส่งข้อมูลเสถียร ไม่หลุดบ่อย
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   int attempts = 0;
@@ -178,6 +181,7 @@ void fetchCommandsFromGitHub() {
 
   WiFiClientSecure client;
   client.setInsecure(); // ไม่ตรวจ Root CA เพื่อความยืดหยุ่นบนไมโครคอนโทรลเลอร์
+  client.setTimeout(10); // จำกัด Timeout 10 วินาที ป้องกันโปรแกรมค้าง
 
   HTTPClient http;
   String cleanRepo = GITHUB_REPO;
@@ -311,7 +315,14 @@ void pushTelemetryToGitHub() {
     DynamicJsonDocument putDoc(8192);
   #endif
 
-  putDoc["message"] = "ESP32: Update telemetry & heartbeat (" + nowIso + ")";
+  putDoc["message"] = "ESP32: Update telemetry & heartbeat (" + nowIso + ") [skip ci] [silent]";
+  JsonObject committer = putDoc["committer"].to<JsonObject>();
+  committer["name"] = "ESP32 Cloud Bot";
+  committer["email"] = "noreply@github.com";
+  JsonObject author = putDoc["author"].to<JsonObject>();
+  author["name"] = "ESP32 Cloud Bot";
+  author["email"] = "noreply@github.com";
+
   putDoc["content"] = encodedOutput;
   putDoc["sha"] = currentFileSha;
   putDoc["branch"] = GITHUB_BRANCH;
@@ -321,6 +332,7 @@ void pushTelemetryToGitHub() {
 
   WiFiClientSecure client;
   client.setInsecure();
+  client.setTimeout(10); // จำกัด Timeout 10 วินาที ป้องกันค้าง
 
   HTTPClient http;
   String cleanRepo = GITHUB_REPO;
@@ -377,6 +389,10 @@ void setup() {
   Serial.println("==========================================");
 
   setupHardware();
+  WiFi.mode(WIFI_STA);
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(true);
+  WiFi.setSleep(false);
   connectWiFi();
 
   // ดึงคำสั่งครั้งแรกทันทีที่เปิดเครื่อง
@@ -384,9 +400,14 @@ void setup() {
 }
 
 void loop() {
-  // ตรวจสอบและเชื่อมต่อ WiFi ซ้ำหากหลุด
+  // ตรวจสอบและเชื่อมต่อ WiFi ซ้ำหากหลุด (แบบ Non-blocking ไม่ทำให้การทำงานอื่นหยุดชะงัก)
   if (WiFi.status() != WL_CONNECTED) {
-    connectWiFi();
+    static unsigned long lastWifiReconnect = 0;
+    if (millis() - lastWifiReconnect >= 4000) {
+      lastWifiReconnect = millis();
+      Serial.println("[WiFi] หลุดการเชื่อมต่อ กำลังเชื่อมต่อใหม่อัตโนมัติ...");
+      WiFi.reconnect();
+    }
   }
 
   unsigned long currentMillis = millis();
