@@ -3,181 +3,270 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ESP32 GitHub Cloud Hub - แผงควบคุม IoT</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ESP32 GitHub Cloud Hub - IoT Smart Relay 4-Channel</title>
+  <meta name="description" content="แผงควบคุม IoT สั่งงานรีเลย์ 4 ช่อง และแสดงผลเซนเซอร์แบบเรียลไทม์ผ่าน GitHub API">
+  
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sarabun:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sarabun:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
     rel="stylesheet">
+  
   <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
+  <!-- Ambient background glow elements -->
+  <div class="bg-glow glow-1"></div>
+  <div class="bg-glow glow-2"></div>
+  <div class="bg-glow glow-3"></div>
+
   <div class="app-wrapper">
     <!-- Navbar / Header -->
     <header class="app-header">
       <div class="brand-section">
         <div class="brand-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="2" y="2" width="20" height="20" rx="4"></rect>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="20" rx="5"></rect>
             <path d="M7 2v4M17 2v4M2 7h20M2 17h20M7 22v-4M17 22v-4"></path>
+            <circle cx="12" cy="12" r="2.5" fill="currentColor"></circle>
           </svg>
         </div>
-        <div>
-          <h1 class="brand-title">ESP32 GitHub Cloud Hub</h1>
-          <p class="brand-subtitle">IoT Broker & Central Controller via GitHub API</p>
+        <div class="brand-text">
+          <div class="brand-title-row">
+            <h1 class="brand-title">ESP32 Cloud Hub</h1>
+            <span class="brand-version-badge">4-CH RELAY</span>
+          </div>
+          <p class="brand-subtitle">IoT Real-Time Broker & Controller via GitHub REST API</p>
         </div>
       </div>
 
       <div class="header-actions">
-        <div id="device-status-badge" class="status-badge offline">
+        <div id="device-status-badge" class="status-badge offline" title="สถานะการเชื่อมต่อบอร์ด ESP32">
           <span class="status-dot"></span>
-          <span id="device-status-text">บอร์ดออฟไลน์</span>
+          <span id="device-status-text">ตรวจจับสถานะ...</span>
         </div>
-        <button id="btn-refresh" class="btn-icon" title="รีเฟรชข้อมูลตอนนี้">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        
+        <button id="btn-refresh" class="btn-icon" title="รีเฟรชข้อมูลจาก GitHub ทันที" aria-label="รีเฟรช">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
           </svg>
         </button>
-        <button id="btn-open-settings" class="btn-primary" title="ตั้งค่า GitHub API">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+        <button id="btn-open-settings" class="btn-primary" title="ตั้งค่าการเชื่อมต่อ GitHub API">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <circle cx="12" cy="12" r="3"></circle>
             <path
               d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
             </path>
           </svg>
-          <span>ตั้งค่า GitHub</span>
+          <span class="btn-text-hide-mobile">ตั้งค่า GitHub</span>
         </button>
       </div>
     </header>
 
-    <!-- Info Banner -->
+    <!-- Info Banner (Notice Bar) -->
     <div id="notice-bar" class="notice-bar">
       <div class="notice-content">
         <span class="notice-icon">ℹ️</span>
-        <span id="notice-text">กรุณากดปุ่ม <b>"ตั้งค่า GitHub"</b> ด้านบน เพื่อใส่ Token และชื่อ Repository
-          ก่อนเริ่มใช้งาน</span>
+        <span id="notice-text">กรุณากดปุ่ม <b>"ตั้งค่า GitHub"</b> ด้านบน เพื่อใส่ Token และชื่อ Repository ก่อนเริ่มใช้งาน</span>
       </div>
     </div>
 
+    <!-- Quick Telemetry Glance Bar (Mobile-first friendly) -->
+    <section class="glance-bar">
+      <div class="glance-item">
+        <span class="glance-icon">⚡</span>
+        <div class="glance-text">
+          <span class="glance-label">รีเลย์กำลังเปิด</span>
+          <span class="glance-val" id="glance-active-relays">0 / 4 ช่อง</span>
+        </div>
+      </div>
+
+      <div class="glance-item">
+        <span class="glance-icon">📶</span>
+        <div class="glance-text">
+          <span class="glance-label">สัญญาณ WiFi</span>
+          <span class="glance-val" id="glance-wifi-rssi">-- dBm</span>
+        </div>
+      </div>
+
+      <div class="glance-item">
+        <span class="glance-icon">🌡️</span>
+        <div class="glance-text">
+          <span class="glance-label">อุณหภูมิห้อง</span>
+          <span class="glance-val" id="glance-temp">--.- °C</span>
+        </div>
+      </div>
+
+      <div class="glance-item glance-sync-status">
+        <span class="glance-icon">🔄</span>
+        <div class="glance-text">
+          <span class="glance-label">สถานะซิงค์</span>
+          <span class="glance-val" id="sync-indicator">🟢 พร้อมสั่งงานเรียลไทม์</span>
+        </div>
+      </div>
+    </section>
+
     <!-- Main Content Grid -->
     <main class="dashboard-grid">
-      <!-- Section 1: Hardware Controls -->
+      <!-- Section 1: Hardware Controls Deck -->
       <section class="card control-section">
         <div class="card-header">
           <div class="card-header-left">
-            <div class="card-icon blue">⚡</div>
+            <div class="card-icon cyan">⚡</div>
             <div>
-              <h2 class="card-title">สวิตช์สั่งงานฮาร์ดแวร์ (Commands)</h2>
-              <p class="card-subtitle">ส่งคำสั่งเปิด-ปิดไปยัง ESP32 ผ่าน GitHub</p>
+              <h2 class="card-title">แผงควบคุมรีเลย์ 4 ช่อง</h2>
+              <p class="card-subtitle">เลื่อนสลับสวิตช์ คำสั่งจะทำงานทันทีแบบเรียลไทม์</p>
             </div>
-          </div>
-          <div class="card-header-right">
-            <span id="sync-indicator" class="sync-indicator">พร้อมทำงาน</span>
           </div>
         </div>
 
-        <!-- Quick Actions & Relay Testing Bar -->
+        <!-- Quick Actions Toolbar -->
         <div class="quick-relay-bar">
           <div class="quick-relay-title">
-            <span>⚡ จัดการรีเลย์ด่วน (Quick Actions)</span>
+            <span>⚡ ชุดคำสั่งด่วน (Quick Actions)</span>
           </div>
           <div class="quick-buttons-row">
-            <button id="btn-test-all-relays" class="btn-quick test" title="ทดสอบวงจรรีเลย์ 4 ช่องตามสเต็ป (วนทีละตัว และเปิดพร้อมกัน)">
-              <span>🧪 ทดสอบรีเลย์ทุกตัว</span>
-            </button>
             <button id="btn-turn-all-on" class="btn-quick on" title="สั่งเปิดรีเลย์ทั้ง 4 ช่องพร้อมกัน">
-              <span>⚡ เปิดหมด</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              <span>เปิดทั้งหมด</span>
             </button>
             <button id="btn-turn-all-off" class="btn-quick off" title="สั่งปิดรีเลย์ทั้ง 4 ช่องพร้อมกัน">
-              <span>⚪ ปิดหมด</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              <span>ปิดทั้งหมด</span>
+            </button>
+            <button id="btn-test-all-relays" class="btn-quick test" title="ทดสอบวงจรรีเลย์ 4 ช่องตามสเต็ป (วนทีละตัว และเปิดพร้อมกันแบบ Soft-Start)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+              <span>ทดสอบวน 1-4</span>
             </button>
           </div>
         </div>
 
-        <div class="controls-grid">
-          <!-- Control Item: Relay 1 -->
-          <div class="control-item">
-            <div class="control-info">
-              <div class="control-label">
-                <span class="control-name">รีเลย์ตัวที่ 1 (Relay 1 - K1)</span>
-                <span class="control-pin">GPIO 32</span>
-              </div>
-              <span id="relay1-state-label" class="state-text">OFF</span>
+        <!-- 4-Channel Relays Grid (Interactive Tiles) -->
+        <div class="relays-grid">
+          <!-- Relay Card 1 -->
+          <div class="relay-tile" id="relay-card-1">
+            <div class="tile-glow"></div>
+            <div class="tile-header">
+              <div class="channel-pill">K1</div>
+              <div class="pin-badge">GPIO 32</div>
+              <div class="power-indicator"></div>
             </div>
-            <label class="toggle-switch">
-              <input type="checkbox" id="cmd-relay1">
-              <span class="slider"></span>
-            </label>
+            <div class="tile-content">
+              <div class="relay-info-box">
+                <span class="relay-name">Relay 1</span>
+                <span class="relay-alias">ช่องที่ 1</span>
+              </div>
+              <div class="tile-switch-wrap">
+                <span id="relay1-state-label" class="state-text">OFF</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="cmd-relay1">
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
           </div>
 
-          <!-- Control Item: Relay 2 -->
-          <div class="control-item">
-            <div class="control-info">
-              <div class="control-label">
-                <span class="control-name">รีเลย์ตัวที่ 2 (Relay 2 - K2)</span>
-                <span class="control-pin">GPIO 33</span>
-              </div>
-              <span id="relay2-state-label" class="state-text">OFF</span>
+          <!-- Relay Card 2 -->
+          <div class="relay-tile" id="relay-card-2">
+            <div class="tile-glow"></div>
+            <div class="tile-header">
+              <div class="channel-pill">K2</div>
+              <div class="pin-badge">GPIO 33</div>
+              <div class="power-indicator"></div>
             </div>
-            <label class="toggle-switch">
-              <input type="checkbox" id="cmd-relay2">
-              <span class="slider"></span>
-            </label>
+            <div class="tile-content">
+              <div class="relay-info-box">
+                <span class="relay-name">Relay 2</span>
+                <span class="relay-alias">ช่องที่ 2</span>
+              </div>
+              <div class="tile-switch-wrap">
+                <span id="relay2-state-label" class="state-text">OFF</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="cmd-relay2">
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
           </div>
 
-          <!-- Control Item: Relay 3 -->
-          <div class="control-item">
-            <div class="control-info">
-              <div class="control-label">
-                <span class="control-name">รีเลย์ตัวที่ 3 (Relay 3 - K3)</span>
-                <span class="control-pin">GPIO 25</span>
-              </div>
-              <span id="relay3-state-label" class="state-text">OFF</span>
+          <!-- Relay Card 3 -->
+          <div class="relay-tile" id="relay-card-3">
+            <div class="tile-glow"></div>
+            <div class="tile-header">
+              <div class="channel-pill">K3</div>
+              <div class="pin-badge">GPIO 25</div>
+              <div class="power-indicator"></div>
             </div>
-            <label class="toggle-switch">
-              <input type="checkbox" id="cmd-relay3">
-              <span class="slider"></span>
-            </label>
+            <div class="tile-content">
+              <div class="relay-info-box">
+                <span class="relay-name">Relay 3</span>
+                <span class="relay-alias">ช่องที่ 3</span>
+              </div>
+              <div class="tile-switch-wrap">
+                <span id="relay3-state-label" class="state-text">OFF</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="cmd-relay3">
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
           </div>
 
-          <!-- Control Item: Relay 4 -->
-          <div class="control-item">
-            <div class="control-info">
-              <div class="control-label">
-                <span class="control-name">รีเลย์ตัวที่ 4 (Relay 4 - K4)</span>
-                <span class="control-pin">GPIO 26</span>
-              </div>
-              <span id="relay4-state-label" class="state-text">OFF</span>
+          <!-- Relay Card 4 -->
+          <div class="relay-tile" id="relay-card-4">
+            <div class="tile-glow"></div>
+            <div class="tile-header">
+              <div class="channel-pill">K4</div>
+              <div class="pin-badge">GPIO 26</div>
+              <div class="power-indicator"></div>
             </div>
-            <label class="toggle-switch">
-              <input type="checkbox" id="cmd-relay4">
-              <span class="slider"></span>
-            </label>
+            <div class="tile-content">
+              <div class="relay-info-box">
+                <span class="relay-name">Relay 4</span>
+                <span class="relay-alias">ช่องที่ 4</span>
+              </div>
+              <div class="tile-switch-wrap">
+                <span id="relay4-state-label" class="state-text">OFF</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="cmd-relay4">
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
           </div>
+        </div>
 
+        <!-- Secondary Controls List (LED & Standby & Target Temp) -->
+        <div class="secondary-controls-list">
           <!-- Control Item: LED -->
-          <div class="control-item">
+          <div class="control-item" id="led-card">
             <div class="control-info">
+              <div class="control-icon-pill amber">💡</div>
               <div class="control-label">
                 <span class="control-name">ไฟบอร์ด LED (Built-in)</span>
-                <span class="control-pin">GPIO 2</span>
+                <span class="control-pin">GPIO 2 (ไฟสถานะบนบอร์ด)</span>
               </div>
-              <span id="led-state-label" class="state-text">OFF</span>
             </div>
-            <label class="toggle-switch">
-              <input type="checkbox" id="cmd-led">
-              <span class="slider"></span>
-            </label>
+            <div class="control-action-side">
+              <span id="led-state-label" class="state-text">OFF</span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="cmd-led">
+                <span class="slider"></span>
+              </label>
+            </div>
           </div>
 
           <!-- Control Item: Mode Selector -->
           <div class="control-item mode-item">
             <div class="control-info">
+              <div class="control-icon-pill blue">⚙️</div>
               <div class="control-label">
                 <span class="control-name">โหมดการทำงาน</span>
-                <span class="control-pin">Auto (รองรับเซนเซอร์ในอนาคต) / Manual</span>
+                <span class="control-pin">Manual (พร้อมรับเซนเซอร์ Auto ในอนาคต)</span>
               </div>
             </div>
             <div class="segmented-control">
@@ -186,52 +275,55 @@
             </div>
           </div>
 
-          <!-- Control Item: Server Standby / Sleep Switch -->
+          <!-- Control Item: Server Standby Switch -->
           <div class="control-item server-standby-item">
             <div class="control-info">
+              <div class="control-icon-pill purple">🌙</div>
               <div class="control-label">
-                <span class="control-name">โหมดพักเซิร์ฟเวอร์ (Server Standby)</span>
-                <span class="control-pin">หยุดส่งข้อมูลเบื้องหลัง / ป้องกัน API เกินลิมิต</span>
+                <span class="control-name">โหมดพักเซิร์ฟเวอร์ (Standby)</span>
+                <span class="control-pin">หยุดส่งข้อมูลเบื้องหลัง / ประหยัดพลังงาน</span>
               </div>
-              <span id="standby-state-label" class="state-text">ทำงานปกติ</span>
             </div>
-            <label class="toggle-switch">
-              <input type="checkbox" id="cmd-server-standby" title="เปิดเพื่อพักการทำงานเซิร์ฟเวอร์">
-              <span class="slider"></span>
-            </label>
+            <div class="control-action-side">
+              <span id="standby-state-label" class="state-text">ทำงานปกติ</span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="cmd-server-standby" title="เปิดเพื่อพักการทำงานเซิร์ฟเวอร์">
+                <span class="slider"></span>
+              </label>
+            </div>
           </div>
         </div>
 
-        <!-- Target Temp Slider -->
+        <!-- Target Temp Slider (Future sensor ready) -->
         <div class="slider-control-box">
           <div class="slider-header">
-            <span class="slider-title">เป้าหมายอุณหภูมิควบคุม (Target Temp)</span>
+            <span class="slider-title">🎯 เป้าหมายอุณหภูมิควบคุม (Target Temp)</span>
             <span class="slider-val" id="target-temp-val">25.0 °C</span>
           </div>
           <input type="range" id="cmd-target-temp" min="15" max="40" step="0.5" value="25.0">
         </div>
 
+        <!-- Card Footer: Silent Mode Option -->
         <div class="card-footer-action">
-          <!-- Notification / Email Mode Selector (Silent Mode) -->
           <div class="notification-mode-row">
             <label class="notification-toggle">
               <input type="checkbox" id="chk-silent-mode" checked>
               <span class="noti-switch-slider"></span>
-              <span class="noti-text" id="silent-mode-label">🔕 ส่งแบบเงียบ (Silent Mode - ไม่แจ้งเตือนเข้าอีเมล)</span>
+              <span class="noti-text" id="silent-mode-label">🔕 ส่งแบบเงียบ (Silent Mode - ไม่ส่งอีเมลแจ้งเตือน)</span>
             </label>
-            <span class="noti-hint">ระบบจะบันทึกคำสั่งอัตโนมัติทันทีที่เลื่อนสวิตช์เปิด-ปิด</span>
+            <span class="noti-hint">ระบบจะสั่งการแบบเรียลไทม์ทันทีโดยไม่มีอีเมลรบกวน 100%</span>
           </div>
         </div>
       </section>
 
-      <!-- Section 2: Sensor & Telemetry -->
+      <!-- Section 2: Sensor & Telemetry Section -->
       <section class="card telemetry-section">
         <div class="card-header">
           <div class="card-header-left">
             <div class="card-icon green">📊</div>
             <div>
-              <h2 class="card-title">สถานะเซนเซอร์ & บอร์ด (Telemetry)</h2>
-              <p class="card-subtitle">ข้อมูลล่าสุดที่ ESP32 ส่งขึ้นมารายงานบน GitHub</p>
+              <h2 class="card-title">สถานะเซนเซอร์ & ฮาร์ดแวร์</h2>
+              <p class="card-subtitle">ข้อมูลการทำงานจริงที่ ESP32 รายงานผ่าน GitHub</p>
             </div>
           </div>
         </div>
@@ -240,23 +332,23 @@
         <div id="esp-status-banner" class="esp-status-banner waiting">
           <div class="esp-status-icon" id="esp-status-icon">⏳</div>
           <div class="esp-status-info">
-            <div class="esp-status-title" id="esp-status-title">กำลังตรวจสอบสถานะออนไลน์ของ ESP32...</div>
-            <div class="esp-status-sub" id="esp-status-desc">ระบบจะแสดงค่าเมื่อบอร์ด ESP32
-              ออนไลน์และส่งข้อมูลจริงขึ้นมาเท่านั้น เพื่อป้องกันการแสดงค่าสุ่ม/มั่ว</div>
+            <div class="esp-status-title" id="esp-status-title">กำลังตรวจสอบการเชื่อมต่อกับ ESP32...</div>
+            <div class="esp-status-sub" id="esp-status-desc">ระบบจะแสดงค่าเมื่อบอร์ด ESP32 เชื่อมต่อ WiFi และส่งข้อมูลขึ้นมาเท่านั้น</div>
           </div>
           <button id="btn-verify-esp" class="btn-verify-esp" title="ตรวจสอบสถานะการออนไลน์เดี๋ยวนี้">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
               <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
             </svg>
-            <span>เช็คสถานะ ESP</span>
+            <span>เช็คสถานะ</span>
           </button>
         </div>
 
+        <!-- Metrics Grid (Responsive 2x2) -->
         <div class="metrics-grid">
           <!-- Temp Card -->
           <div class="metric-card">
             <div class="metric-top">
-              <span class="metric-title">อุณหภูมิ</span>
+              <span class="metric-title">อุณหภูมิเซนเซอร์</span>
               <span class="metric-icon">🌡️</span>
             </div>
             <div class="metric-val">
@@ -286,7 +378,7 @@
           <!-- WiFi RSSI Card -->
           <div class="metric-card">
             <div class="metric-top">
-              <span class="metric-title">สัญญาณ WiFi (RSSI)</span>
+              <span class="metric-title">สัญญาณ WiFi</span>
               <span class="metric-icon">📶</span>
             </div>
             <div class="metric-val">
@@ -302,32 +394,36 @@
               <span class="metric-title">เวลาทำงาน (Uptime)</span>
               <span class="metric-icon">⏱️</span>
             </div>
-            <div class="metric-val small" id="tele-uptime">--</div>
-            <div class="metric-desc" id="tele-ip">IP: --</div>
+            <div class="metric-val">
+              <span id="tele-uptime">--</span>
+            </div>
+            <div class="metric-desc ip-address-box">
+              <span>IP: <code id="tele-ip">--</code></span>
+            </div>
           </div>
         </div>
 
-        <!-- Meta info box -->
-        <div class="telemetry-meta">
+        <!-- System Meta Info Box -->
+        <div class="meta-info-box">
           <div class="meta-row">
-            <span class="meta-key">รายงานล่าสุดเมื่อ (Last Seen):</span>
-            <span class="meta-val" id="tele-last-seen">ยังไม่มีข้อมูล</span>
+            <span class="meta-label">รายงานล่าสุด (Last Seen):</span>
+            <span class="meta-val" id="tele-last-seen">--</span>
           </div>
           <div class="meta-row">
-            <span class="meta-key">Git Commit SHA ปัจจุบัน:</span>
-            <span class="meta-val mono" id="tele-sha">--</span>
+            <span class="meta-label">Git Commit SHA ปัจจุบัน:</span>
+            <span class="meta-val code" id="tele-sha">--</span>
           </div>
         </div>
       </section>
 
-      <!-- Section 3: Log / Activity Console -->
+      <!-- Section 3: Log / Activity Console (Full width) -->
       <section class="card log-section full-width">
         <div class="card-header">
           <div class="card-header-left">
             <div class="card-icon purple">📜</div>
             <div>
               <h2 class="card-title">บันทึกเหตุการณ์การเชื่อมต่อ (Activity Log)</h2>
-              <p class="card-subtitle">ประวัติการดึงและอัปเดตข้อมูลกับ GitHub REST API</p>
+              <p class="card-subtitle">ประวัติการดึงและอัปเดตคำสั่งกับ GitHub REST API</p>
             </div>
           </div>
           <div class="card-header-right">
@@ -335,14 +431,21 @@
           </div>
         </div>
         <div class="log-console" id="log-console">
-          <div class="log-entry system">[ระบบเริ่มต้น] กรุณาตั้งค่าเชื่อมต่อ Repository ของคุณ</div>
+          <div class="log-entry system">[ระบบเริ่มต้น] กำลังเริ่มเชื่อมต่อ GitHub API...</div>
         </div>
       </section>
     </main>
 
     <!-- Footer -->
     <footer class="app-footer">
-      <p>ESP32 GitHub Cloud Broker &copy; 2026 | พัฒนาสำหรับระบบ IoT แบบไร้เซิร์ฟเวอร์ด้วย GitHub API</p>
+      <div class="footer-content">
+        <p>ESP32 GitHub Cloud Broker &copy; 2026 | พัฒนาสำหรับระบบ IoT แบบไร้เซิร์ฟเวอร์ด้วย GitHub API</p>
+        <div class="footer-links">
+          <a href="https://github.com/67125530108-lang/Server-ESP32" target="_blank" rel="noopener">GitHub Repository</a>
+          <span>•</span>
+          <span class="footer-badge">4-CH Active HIGH</span>
+        </div>
+      </div>
     </footer>
   </div>
 
@@ -351,7 +454,7 @@
     <div class="modal-card">
       <div class="modal-header">
         <div class="modal-title-group">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
           </svg>
           <h3>ตั้งค่าการเชื่อมต่อ GitHub</h3>
@@ -361,8 +464,8 @@
 
       <div class="modal-body">
         <div class="form-group">
-          <label for="cfg-owner">ชื่อผู้ใช้ GitHub (Repository Owner / Username) <span class="req">*</span></label>
-          <input type="text" id="cfg-owner" placeholder="เช่น your-username" autocomplete="off">
+          <label for="cfg-owner">ชื่อผู้ใช้ GitHub (Owner / Username) <span class="req">*</span></label>
+          <input type="text" id="cfg-owner" placeholder="เช่น 67125530108-lang" autocomplete="off">
           <small class="form-help">ชื่อบัญชี GitHub เจ้าของ Repository</small>
         </div>
 
@@ -388,9 +491,8 @@
             <button type="button" id="btn-toggle-token" class="btn-input-icon" title="แสดง/ซ่อน">👁️</button>
           </div>
           <small class="form-help">
-            ใช้ Token ที่มีสิทธิ์อ่าน/เขียน (เช่น Scope <code>repo</code> หรือ Fine-grained token สิทธิ์
-            <code>Contents: Read and write</code>)
-            <br><b>ความปลอดภัย:</b> Token จะถูกจัดเก็บเฉพาะใน <code>localStorage</code> บนบราวเซอร์ของคุณเท่านั้น
+            ใช้ Token ที่มีสิทธิ์เขียนไฟล์ (เช่น Scope <code>repo</code> หรือ <code>Contents: Read and write</code>)
+            <br><b>ความปลอดภัย:</b> Token จะถูกจัดเก็บเฉพาะใน <code>localStorage</code> ของเครื่องคุณเท่านั้น
           </small>
         </div>
 

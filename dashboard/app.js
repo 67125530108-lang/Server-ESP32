@@ -32,6 +32,17 @@
     noticeText: document.getElementById('notice-text'),
     syncIndicator: document.getElementById('sync-indicator'),
 
+    // Glance Bar
+    glanceActiveRelays: document.getElementById('glance-active-relays'),
+    glanceWifiRssi: document.getElementById('glance-wifi-rssi'),
+    glanceTemp: document.getElementById('glance-temp'),
+
+    // Relay Cards (Interactive Tiles)
+    relayCard1: document.getElementById('relay-card-1'),
+    relayCard2: document.getElementById('relay-card-2'),
+    relayCard3: document.getElementById('relay-card-3'),
+    relayCard4: document.getElementById('relay-card-4'),
+
     // Controls
     cmdRelay1: document.getElementById('cmd-relay1'),
     relay1Label: document.getElementById('relay1-state-label'),
@@ -450,6 +461,9 @@
         el.cmdTargetTemp.value = target_temp;
         el.targetTempVal.textContent = `${parseFloat(target_temp).toFixed(1)} °C`;
       }
+
+      // อัปเดตสถานะการแสดงผลและแสงนีออนของ Relay Tiles ทันที
+      updateRelayTilesVisuals();
     }
 
     // 2. Telemetry & ESP32 Live Verification
@@ -476,9 +490,13 @@
 
       // แสดงค่าเซนเซอร์จริงจากบอร์ด
       if (temperature !== undefined) {
-        el.teleTemp.textContent = parseFloat(temperature).toFixed(1);
+        const tempFormatted = parseFloat(temperature).toFixed(1);
+        el.teleTemp.textContent = tempFormatted;
         const tempPct = Math.min(Math.max(((temperature - 10) / 40) * 100, 0), 100);
         el.tempBar.style.width = `${tempPct}%`;
+        if (el.glanceTemp) {
+          el.glanceTemp.textContent = `${tempFormatted} °C`;
+        }
       }
 
       if (humidity !== undefined) {
@@ -493,6 +511,9 @@
         else if (rssi < -70) qualityText = 'สัญญาณปานกลาง';
         else if (rssi < -60) qualityText = 'สัญญาณดี';
         el.teleRssiQuality.textContent = qualityText;
+        if (el.glanceWifiRssi) {
+          el.glanceWifiRssi.textContent = `${rssi} dBm`;
+        }
       }
 
       if (uptime_sec !== undefined) {
@@ -517,6 +538,8 @@
       el.teleUptime.textContent = '--';
       el.teleIp.textContent = 'IP: รอเชื่อมต่อ';
       el.teleLastSeen.textContent = 'ยังไม่เคยเชื่อมต่อจริง';
+      if (el.glanceTemp) el.glanceTemp.textContent = '--.- °C';
+      if (el.glanceWifiRssi) el.glanceWifiRssi.textContent = '-- dBm';
     }
 
     if (currentSha) {
@@ -542,6 +565,26 @@
     if (el.espDesc) el.espDesc.textContent = desc;
   }
 
+  // Helper: อัปเดตกราฟิกและแสงนีออนของ Relay Tiles และ Glance Bar
+  function updateRelayTilesVisuals() {
+    let activeCount = 0;
+    [1, 2, 3, 4].forEach(i => {
+      const chk = el[`cmdRelay${i}`];
+      const card = el[`relayCard${i}`];
+      if (chk && card) {
+        if (chk.checked) {
+          card.classList.add('is-on');
+          activeCount++;
+        } else {
+          card.classList.remove('is-on');
+        }
+      }
+    });
+    if (el.glanceActiveRelays) {
+      el.glanceActiveRelays.textContent = `${activeCount} / 4 ช่อง`;
+    }
+  }
+
   // Helper: ตั้งค่ารีเลย์ทุกช่องพร้อมกัน
   function setAllRelays(state) {
     [1, 2, 3, 4].forEach(i => {
@@ -553,6 +596,7 @@
         lbl.className = `state-text ${state ? 'active' : ''}`;
       }
     });
+    updateRelayTilesVisuals();
   }
 
   // =========================================================================
@@ -564,6 +608,7 @@
       const on = el.cmdRelay1.checked;
       el.relay1Label.textContent = on ? 'ON' : 'OFF';
       el.relay1Label.className = `state-text ${on ? 'active' : ''}`;
+      updateRelayTilesVisuals();
       scheduleAutoCommit();
     });
 
@@ -571,6 +616,7 @@
       const on = el.cmdRelay2.checked;
       el.relay2Label.textContent = on ? 'ON' : 'OFF';
       el.relay2Label.className = `state-text ${on ? 'active' : ''}`;
+      updateRelayTilesVisuals();
       scheduleAutoCommit();
     });
 
@@ -579,6 +625,7 @@
         const on = el.cmdRelay3.checked;
         el.relay3Label.textContent = on ? 'ON' : 'OFF';
         el.relay3Label.className = `state-text ${on ? 'active' : ''}`;
+        updateRelayTilesVisuals();
         scheduleAutoCommit();
       });
     }
@@ -588,6 +635,7 @@
         const on = el.cmdRelay4.checked;
         el.relay4Label.textContent = on ? 'ON' : 'OFF';
         el.relay4Label.className = `state-text ${on ? 'active' : ''}`;
+        updateRelayTilesVisuals();
         scheduleAutoCommit();
       });
     }
