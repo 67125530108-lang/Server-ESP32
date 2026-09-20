@@ -456,6 +456,11 @@ void setup() {
 
   // ดึงคำสั่งครั้งแรกทันทีที่เปิดเครื่อง
   fetchCommandsFromGitHub();
+
+  // ส่งรายงานตัว Heartbeat ครั้งแรกทันทีเพื่อให้หน้าเว็บขึ้นออนไลน์ทันทีที่เปิดบอร์ด
+  if (ENABLE_AUTO_TELEMETRY_PUSH) {
+    pushTelemetryToGitHub();
+  }
 }
 
 void loop() {

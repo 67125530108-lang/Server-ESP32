@@ -452,8 +452,8 @@
 
       const diffSeconds = (Date.now() - lastSeenDate.getTime()) / 1000;
 
-      // ESP32 ส่ง Telemetry ทุกๆ 30-60 วินาที ให้ Threshold เป็น 90 วินาทีเพื่อความเสถียร ไม่หลุดบ่อย
-      if (diffSeconds <= 90) {
+      // ESP32 ส่ง Telemetry ทุกๆ 45 วินาที ให้ Threshold เป็น 120 วินาทีเพื่อความเสถียร ไม่หลุดบ่อย
+      if (diffSeconds <= 120) {
         setDeviceOnline(true, `ESP32 ออนไลน์ (${Math.max(1, Math.round(diffSeconds))} วิที่แล้ว)`);
         setEspBanner('online', '🟢', 'บอร์ด ESP32 ออนไลน์และส่งข้อมูลปกติ',
           `เชื่อมต่อกับ GitHub สำเร็จ ล่าสุดเมื่อ ${Math.max(1, Math.round(diffSeconds))} วินาทีที่แล้ว (${lastSeenDate.toLocaleTimeString('th-TH')})`);

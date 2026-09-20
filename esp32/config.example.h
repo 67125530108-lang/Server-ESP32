@@ -35,13 +35,13 @@
 // =============================================================================
 // รอบเวลาการทำงาน & การส่งข้อมูล (มิลลิวินาที)
 // =============================================================================
-// ดึงคำสั่งใหม่จาก GitHub ทุกๆ 5-10 วินาที
+// ดึงคำสั่งใหม่จาก GitHub ทุกๆ 5 วินาที
 #define POLL_COMMANDS_INTERVAL_MS   5000 
 
-// ปิดการส่ง Telemetry Commit อัตโนมัติเพื่อป้องกันอีเมลแจ้งเตือนและการเกิด Commit ซ้ำซ้อน
-#define ENABLE_AUTO_TELEMETRY_PUSH  false
+// เปิดการส่ง Heartbeat เพื่อให้หน้าเว็บ Dashboard ทราบสถานะออนไลน์ของ ESP32
+#define ENABLE_AUTO_TELEMETRY_PUSH  true
 
-// ส่งข้อมูลเซนเซอร์และสถานะขึ้น GitHub (ใช้เฉพาะเมื่อเปิด ENABLE_AUTO_TELEMETRY_PUSH เป็น true)
-#define PUSH_TELEMETRY_INTERVAL_MS  60000 
+// ส่งข้อมูลรายงานตัว Heartbeat & Telemetry ทุกๆ 45 วินาที
+#define PUSH_TELEMETRY_INTERVAL_MS  45000 
 
 #endif // CONFIG_H
