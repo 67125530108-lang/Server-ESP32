@@ -1,8 +1,8 @@
 {
   "commands": {
-    "relay1": false,
-    "relay2": false,
-    "led": false,
+    "relay1": true,
+    "relay2": true,
+    "led": true,
     "mode": "manual",
     "target_temp": 25
   },
@@ -17,6 +17,6 @@
   "meta": {
     "version": "1.0.0",
     "updated_by": "web_dashboard",
-    "updated_at": "2026-09-20T08:38:07.685Z"
+    "updated_at": "2026-09-20T08:38:24.788Z"
   }
 }
