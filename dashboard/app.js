@@ -336,8 +336,8 @@
       const commitMsg = isStandby
         ? 'Dashboard: Put server to Standby (Power & Quota Saving)'
         : (commands.test_relays
-            ? 'Dashboard: Run Relay Self-Test Sequence (1-4)'
-            : `Dashboard: Quick Toggle (R1:${commands.relay1 ? 'ON' : 'OFF'}, R2:${commands.relay2 ? 'ON' : 'OFF'}, R3:${commands.relay3 ? 'ON' : 'OFF'}, R4:${commands.relay4 ? 'ON' : 'OFF'}, LED:${commands.led ? 'ON' : 'OFF'})`);
+          ? 'Dashboard: Run Relay Self-Test Sequence (1-4)'
+          : `Dashboard: Quick Toggle (R1:${commands.relay1 ? 'ON' : 'OFF'}, R2:${commands.relay2 ? 'ON' : 'OFF'}, R3:${commands.relay3 ? 'ON' : 'OFF'}, R4:${commands.relay4 ? 'ON' : 'OFF'}, LED:${commands.led ? 'ON' : 'OFF'})`);
 
       const isSilent = el.chkSilentMode ? el.chkSilentMode.checked : true;
       const finalCommitMsg = commitMsg + (isSilent ? ' [skip ci] [silent] [no-notify]' : '');
