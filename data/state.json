@@ -1,9 +1,9 @@
 {
   "commands": {
-    "relay1": true,
-    "relay2": true,
-    "relay3": true,
-    "relay4": true,
+    "relay1": false,
+    "relay2": false,
+    "relay3": false,
+    "relay4": false,
     "led": false,
     "test_relays": false,
     "mode": "manual",
@@ -12,14 +12,20 @@
   "telemetry": {
     "temperature": 29.2,
     "humidity": 61.1,
-    "rssi": -69,
-    "uptime_sec": 228,
-    "last_seen": "2026-09-22T13:50:02Z",
-    "ip_address": "192.168.1.192"
+    "rssi": -58,
+    "last_seen": "2026-09-22T13:50:15Z"
+  },
+  "display": {
+    "online": true,
+    "last_seen": "2026-09-22T13:50:15Z",
+    "ip_address": "192.168.1.175",
+    "rssi": -58,
+    "uptime_sec": 243,
+    "last_action": "ALL OFF"
   },
   "meta": {
-    "version": "1.0.0",
-    "updated_by": "ESP32_Device",
-    "updated_at": "2026-09-22T13:50:02Z"
+    "version": "1.1.0",
+    "updated_by": "display_touch",
+    "updated_at": "2026-09-22T13:50:15Z"
   }
 }
