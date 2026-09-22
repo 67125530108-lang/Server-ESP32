@@ -2,7 +2,7 @@
   "commands": {
     "relay1": false,
     "relay2": false,
-    "relay3": false,
+    "relay3": true,
     "relay4": false,
     "led": false,
     "test_relays": false,
@@ -12,20 +12,20 @@
   "telemetry": {
     "temperature": 27,
     "humidity": 60.2,
-    "rssi": -53,
-    "last_seen": "2026-09-22T13:48:39Z"
+    "rssi": -58,
+    "last_seen": "2026-09-22T13:48:58Z"
   },
   "display": {
     "online": true,
-    "last_seen": "2026-09-22T13:48:39Z",
+    "last_seen": "2026-09-22T13:48:58Z",
     "ip_address": "192.168.1.175",
-    "rssi": -53,
-    "uptime_sec": 147,
-    "device_name": "ESP32_ST7796_Touchscreen"
+    "rssi": -58,
+    "uptime_sec": 166,
+    "last_action": "Relay 3 ON"
   },
   "meta": {
     "version": "1.1.0",
-    "updated_by": "display_heartbeat",
-    "updated_at": "2026-09-22T13:48:39Z"
+    "updated_by": "display_touch",
+    "updated_at": "2026-09-22T13:48:58Z"
   }
 }
