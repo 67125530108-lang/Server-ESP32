@@ -192,24 +192,35 @@ inline bool fetchCloudCommands() {
           // ตั้งค่า Flag ป้องกันไม่ให้ Event Listener ของสวิตช์ส่งคำสั่งย้อนกลับไปคลาวด์ซ้ำ (Anti-Echo)
           is_syncing_from_cloud = true;
 
+          // สั่งงานขาฮาร์ดแวร์จริงทันที
           for (int i = 0; i < 4; i++) {
             relay_states[i] = remoteRelays[i];
             int pin = (i == 0) ? PIN_RELAY_1 : (i == 1) ? PIN_RELAY_2 : (i == 2) ? PIN_RELAY_3 : PIN_RELAY_4;
             digitalWrite(pin, (RELAY_ACTIVE_LOW ? !relay_states[i] : relay_states[i]));
-            update_relay_card_style(i);
           }
 
           led_state = remoteLed;
           digitalWrite(PIN_LED_BOARD, led_state ? HIGH : LOW);
-          update_led_card_style();
+
+          // ป้องกันความปลอดภัยของหน่วยความจำ LVGL ด้วย Mutex
+          if (lvgl_mutex && xSemaphoreTake(lvgl_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+            for (int i = 0; i < 4; i++) {
+              update_relay_card_style(i);
+            }
+            update_led_card_style();
+            xSemaphoreGive(lvgl_mutex);
+          }
 
           is_syncing_from_cloud = false;
         }
 
         // อัปเดต Badge บนหน้าจอ Cloud Hub
         if (cloud_status_badge) {
-          lv_label_set_text(cloud_status_badge, LV_SYMBOL_WIFI " Synced");
-          lv_obj_set_style_text_color(cloud_status_badge, lv_color_hex(0x10B981), 0);
+          if (lvgl_mutex && xSemaphoreTake(lvgl_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+            lv_label_set_text(cloud_status_badge, LV_SYMBOL_WIFI " Synced");
+            lv_obj_set_style_text_color(cloud_status_badge, lv_color_hex(0x10B981), 0);
+            xSemaphoreGive(lvgl_mutex);
+          }
         }
       }
     }
@@ -223,18 +234,52 @@ inline bool fetchCloudCommands() {
 }
 
 // -------------------------------------------------------------
-// 2. ส่งคำสั่งจากจอสัมผัสขึ้น GitHub (Push Touch Command)
+// 2. คิวคำสั่งสัมผัสหน้าจอแบบ Asynchronous (Non-blocking GUI)
+// -------------------------------------------------------------
+inline volatile bool hasPendingCloudCommand = false;
+inline volatile unsigned long pendingCommandRequestTime = 0;
+inline String pendingActionName = "";
+
+inline void queueCloudCommand(const String& actionName) {
+  pendingActionName = actionName;
+  hasPendingCloudCommand = true;
+  pendingCommandRequestTime = millis();
+}
+
+// -------------------------------------------------------------
+// ฟังก์ชันสำหรับส่งคำสั่งจากหน้าจอสัมผัส (รันไวใน 0.05ms ไม่บล็อกหน้าจอ)
 // -------------------------------------------------------------
 inline bool sendCloudCommand(int targetRelay, bool targetState) {
-  // หากการเปลี่ยนสถานะนี้เกิดจากการซิงค์มาจากคลาวด์ ไม่ต้องส่งกลับไปซ้ำ
   if (is_syncing_from_cloud) return true;
+  String action = String("Relay ") + (targetRelay + 1) + (targetState ? " ON" : " OFF");
+  queueCloudCommand(action);
+  return true;
+}
+
+inline bool sendAllRelaysCloudCommand(bool targetState) {
+  if (is_syncing_from_cloud) return true;
+  String action = String(targetState ? "ALL ON" : "ALL OFF");
+  queueCloudCommand(action);
+  return true;
+}
+
+inline bool sendCloudLedCommand(bool targetState) {
+  if (is_syncing_from_cloud) return true;
+  String action = String("LED ") + (targetState ? "ON" : "OFF");
+  queueCloudCommand(action);
+  return true;
+}
+
+// -------------------------------------------------------------
+// 3. ฟังก์ชันส่งคำสั่งจริงขึ้น GitHub (รันบน Core 0 ใน Background)
+// -------------------------------------------------------------
+inline bool pushCurrentStateToCloud(const String& actionName) {
   if (WiFi.status() != WL_CONNECTED) return false;
 
-  Serial.printf("[LVGL-TOUCH] สัมผัสหน้าจอ Relay %d -> %s กำลังส่งคำสั่งขึ้น Cloud...\n", 
-                targetRelay + 1, targetState ? "ON" : "OFF");
-
-  // ดึงไฟล์ล่าสุดเพื่อป้องกัน SHA ไม่ตรงกัน (409 Conflict)
-  fetchCloudCommands();
+  // หากยังไม่มี SHA ให้ดึงครั้งแรกก่อน
+  if (lvglFileSha.length() == 0) {
+    fetchCloudCommands();
+  }
 
   String nowIso = getLvglIsoTimestamp();
 
@@ -244,12 +289,12 @@ inline bool sendCloudCommand(int targetRelay, bool targetState) {
     DynamicJsonDocument rootDoc(4096);
   #endif
 
-  // กำหนดค่าคำสั่ง
+  // บันทึกสถานะคำสั่งปัจจุบันทั้งหมด
   JsonObject commands = rootDoc["commands"].to<JsonObject>();
-  for (int i = 0; i < 4; i++) {
-    bool st = (i == targetRelay) ? targetState : relay_states[i];
-    commands[String("relay") + (i + 1)] = st;
-  }
+  commands["relay1"] = relay_states[0];
+  commands["relay2"] = relay_states[1];
+  commands["relay3"] = relay_states[2];
+  commands["relay4"] = relay_states[3];
   commands["led"] = led_state;
   commands["test_relays"] = false;
   commands["mode"] = "manual";
@@ -269,7 +314,7 @@ inline bool sendCloudCommand(int targetRelay, bool targetState) {
   displayObj["ip_address"] = WiFi.localIP().toString();
   displayObj["rssi"] = WiFi.RSSI();
   displayObj["uptime_sec"] = millis() / 1000;
-  displayObj["last_action"] = String("Relay ") + (targetRelay + 1) + (targetState ? " ON" : " OFF");
+  displayObj["last_action"] = actionName;
 
   // Meta ระบุว่าการเปลี่ยนแปลงนี้มาจากหน้าจอสัมผัส
   JsonObject meta = rootDoc["meta"].to<JsonObject>();
@@ -287,8 +332,7 @@ inline bool sendCloudCommand(int targetRelay, bool targetState) {
     DynamicJsonDocument putDoc(8192);
   #endif
 
-  String commitMsg = String("LVGL Display: Toggle Relay ") + (targetRelay + 1) + 
-                     (targetState ? " ON" : " OFF") + " [skip ci] [silent] [no-notify]";
+  String commitMsg = String("LVGL Display: ") + actionName + " [skip ci] [silent] [no-notify]";
   putDoc["message"] = commitMsg;
   JsonObject committer = putDoc["committer"].to<JsonObject>();
   committer["name"] = "github-actions[bot]";
@@ -305,7 +349,7 @@ inline bool sendCloudCommand(int targetRelay, bool targetState) {
 
   WiFiClientSecure client;
   client.setInsecure();
-  client.setTimeout(10);
+  client.setTimeout(6);
 
   HTTPClient http;
   String cleanRepo = GITHUB_REPO;
@@ -335,10 +379,29 @@ inline bool sendCloudCommand(int targetRelay, bool targetState) {
     deserializeJson(resDoc, resp);
     lvglFileSha = resDoc["content"]["sha"].as<String>();
     success = true;
-    Serial.printf("[LVGL-TOUCH] ส่งคำสั่งสำเร็จ! New SHA: %s\n", lvglFileSha.substring(0, 7).c_str());
+    Serial.printf("[LVGL-TOUCH] ส่งคำสั่ง %s สำเร็จ! SHA: %s\n", actionName.c_str(), lvglFileSha.substring(0, 7).c_str());
+  } else if (httpCode == 409) {
+    Serial.println("[LVGL-TOUCH] 409 Conflict - กำลังดึง SHA ล่าสุดและส่งใหม่...");
+    lvglFileSha = "";
+    fetchCloudCommands();
+    putDoc["sha"] = lvglFileSha;
+    putPayload = "";
+    serializeJson(putDoc, putPayload);
+    httpCode = http.PUT(putPayload);
+    if (httpCode == HTTP_CODE_OK || httpCode == 201) {
+      String resp = http.getString();
+      #if ARDUINOJSON_VERSION_MAJOR >= 7
+        JsonDocument resDoc;
+      #else
+        DynamicJsonDocument resDoc(4096);
+      #endif
+      deserializeJson(resDoc, resp);
+      lvglFileSha = resDoc["content"]["sha"].as<String>();
+      success = true;
+      Serial.printf("[LVGL-TOUCH] ลองใหม่อีกครั้ง ส่งคำสั่ง %s สำเร็จ!\n", actionName.c_str());
+    }
   } else {
     Serial.printf("[LVGL-TOUCH] ส่งคำสั่งไม่สำเร็จ HTTP Code: %d\n", httpCode);
-    if (httpCode == 409) lvglFileSha = "";
   }
 
   http.end();
@@ -346,220 +409,11 @@ inline bool sendCloudCommand(int targetRelay, bool targetState) {
 }
 
 // -------------------------------------------------------------
-// 3. ส่งคำสั่ง ALL ON / ALL OFF จากจอสัมผัส
-// -------------------------------------------------------------
-inline bool sendAllRelaysCloudCommand(bool targetState) {
-  if (is_syncing_from_cloud) return true;
-  if (WiFi.status() != WL_CONNECTED) return false;
-
-  fetchCloudCommands();
-  String nowIso = getLvglIsoTimestamp();
-
-  #if ARDUINOJSON_VERSION_MAJOR >= 7
-    JsonDocument rootDoc;
-  #else
-    DynamicJsonDocument rootDoc(4096);
-  #endif
-
-  JsonObject commands = rootDoc["commands"].to<JsonObject>();
-  for (int i = 0; i < 4; i++) {
-    commands[String("relay") + (i + 1)] = targetState;
-  }
-  commands["led"] = led_state;
-  commands["test_relays"] = false;
-  commands["mode"] = "manual";
-  commands["target_temp"] = 25.0;
-
-  JsonObject telemetry = rootDoc["telemetry"].to<JsonObject>();
-  telemetry["temperature"] = cloud_temp;
-  telemetry["humidity"] = cloud_hum;
-  telemetry["rssi"] = WiFi.RSSI();
-  telemetry["last_seen"] = nowIso;
-
-  JsonObject displayObj = rootDoc["display"].to<JsonObject>();
-  displayObj["online"] = true;
-  displayObj["last_seen"] = nowIso;
-  displayObj["ip_address"] = WiFi.localIP().toString();
-  displayObj["rssi"] = WiFi.RSSI();
-  displayObj["uptime_sec"] = millis() / 1000;
-  displayObj["last_action"] = targetState ? "ALL ON" : "ALL OFF";
-
-  JsonObject meta = rootDoc["meta"].to<JsonObject>();
-  meta["version"] = "1.1.0";
-  meta["updated_by"] = "display_touch";
-  meta["updated_at"] = nowIso;
-
-  String jsonOutput;
-  serializeJsonPretty(rootDoc, jsonOutput);
-  String encodedOutput = lvglBase64Encode(jsonOutput);
-
-  #if ARDUINOJSON_VERSION_MAJOR >= 7
-    JsonDocument putDoc;
-  #else
-    DynamicJsonDocument putDoc(8192);
-  #endif
-
-  putDoc["message"] = String("LVGL Display: ") + (targetState ? "ALL ON" : "ALL OFF") + " [skip ci] [silent] [no-notify]";
-  JsonObject committer = putDoc["committer"].to<JsonObject>();
-  committer["name"] = "github-actions[bot]";
-  committer["email"] = "41898282+github-actions[bot]@users.noreply.github.com";
-  JsonObject author = putDoc["author"].to<JsonObject>();
-  author["name"] = "github-actions[bot]";
-  author["email"] = "41898282+github-actions[bot]@users.noreply.github.com";
-  putDoc["content"] = encodedOutput;
-  putDoc["sha"] = lvglFileSha;
-  putDoc["branch"] = GITHUB_BRANCH;
-
-  String putPayload;
-  serializeJson(putDoc, putPayload);
-
-  WiFiClientSecure client;
-  client.setInsecure();
-  client.setTimeout(10);
-
-  HTTPClient http;
-  String cleanRepo = GITHUB_REPO;
-  cleanRepo.trim();
-  cleanRepo.replace(" ", "-");
-
-  String encodedPath = urlEncode(GITHUB_FILE_PATH);
-  String url = String("https://api.github.com/repos/") + GITHUB_OWNER + "/" + cleanRepo + 
-               "/contents/" + encodedPath;
-
-  http.begin(client, url);
-  http.addHeader("User-Agent", "ESP32-LVGL-Display");
-  http.addHeader("Accept", "application/vnd.github+json");
-  http.addHeader("Content-Type", "application/json");
-  http.addHeader("Authorization", String("Bearer ") + GITHUB_TOKEN);
-
-  int httpCode = http.PUT(putPayload);
-  bool success = false;
-  if (httpCode == HTTP_CODE_OK || httpCode == 201) {
-    String resp = http.getString();
-    #if ARDUINOJSON_VERSION_MAJOR >= 7
-      JsonDocument resDoc;
-    #else
-      DynamicJsonDocument resDoc(4096);
-    #endif
-    deserializeJson(resDoc, resp);
-    lvglFileSha = resDoc["content"]["sha"].as<String>();
-    success = true;
-  }
-  http.end();
-  return success;
-}
-
-// -------------------------------------------------------------
-// 4. ส่งคำสั่ง LED (GPIO 2) จากจอสัมผัส
-// -------------------------------------------------------------
-inline bool sendCloudLedCommand(bool targetState) {
-  if (is_syncing_from_cloud) return true;
-  if (WiFi.status() != WL_CONNECTED) return false;
-
-  fetchCloudCommands();
-  String nowIso = getLvglIsoTimestamp();
-
-  #if ARDUINOJSON_VERSION_MAJOR >= 7
-    JsonDocument rootDoc;
-  #else
-    DynamicJsonDocument rootDoc(4096);
-  #endif
-
-  JsonObject commands = rootDoc["commands"].to<JsonObject>();
-  for (int i = 0; i < 4; i++) {
-    commands[String("relay") + (i + 1)] = relay_states[i];
-  }
-  commands["led"] = targetState;
-  commands["test_relays"] = false;
-  commands["mode"] = "manual";
-  commands["target_temp"] = 25.0;
-
-  JsonObject telemetry = rootDoc["telemetry"].to<JsonObject>();
-  telemetry["temperature"] = cloud_temp;
-  telemetry["humidity"] = cloud_hum;
-  telemetry["rssi"] = WiFi.RSSI();
-  telemetry["last_seen"] = nowIso;
-
-  JsonObject displayObj = rootDoc["display"].to<JsonObject>();
-  displayObj["online"] = true;
-  displayObj["last_seen"] = nowIso;
-  displayObj["ip_address"] = WiFi.localIP().toString();
-  displayObj["rssi"] = WiFi.RSSI();
-  displayObj["uptime_sec"] = millis() / 1000;
-  displayObj["last_action"] = targetState ? "LED ON" : "LED OFF";
-
-  JsonObject meta = rootDoc["meta"].to<JsonObject>();
-  meta["version"] = "1.1.0";
-  meta["updated_by"] = "display_touch";
-  meta["updated_at"] = nowIso;
-
-  String jsonOutput;
-  serializeJsonPretty(rootDoc, jsonOutput);
-  String encodedOutput = lvglBase64Encode(jsonOutput);
-
-  #if ARDUINOJSON_VERSION_MAJOR >= 7
-    JsonDocument putDoc;
-  #else
-    DynamicJsonDocument putDoc(8192);
-  #endif
-
-  putDoc["message"] = String("LVGL Display: Toggle LED ") + (targetState ? "ON" : "OFF") + " [skip ci] [silent] [no-notify]";
-  JsonObject committer = putDoc["committer"].to<JsonObject>();
-  committer["name"] = "github-actions[bot]";
-  committer["email"] = "41898282+github-actions[bot]@users.noreply.github.com";
-  JsonObject author = putDoc["author"].to<JsonObject>();
-  author["name"] = "github-actions[bot]";
-  author["email"] = "41898282+github-actions[bot]@users.noreply.github.com";
-  putDoc["content"] = encodedOutput;
-  putDoc["sha"] = lvglFileSha;
-  putDoc["branch"] = GITHUB_BRANCH;
-
-  String putPayload;
-  serializeJson(putDoc, putPayload);
-
-  WiFiClientSecure client;
-  client.setInsecure();
-  client.setTimeout(10);
-
-  HTTPClient http;
-  String cleanRepo = GITHUB_REPO;
-  cleanRepo.trim();
-  cleanRepo.replace(" ", "-");
-
-  String encodedPath = urlEncode(GITHUB_FILE_PATH);
-  String url = String("https://api.github.com/repos/") + GITHUB_OWNER + "/" + cleanRepo + 
-               "/contents/" + encodedPath;
-
-  http.begin(client, url);
-  http.addHeader("User-Agent", "ESP32-LVGL-Display");
-  http.addHeader("Accept", "application/vnd.github+json");
-  http.addHeader("Content-Type", "application/json");
-  http.addHeader("Authorization", String("Bearer ") + GITHUB_TOKEN);
-
-  int httpCode = http.PUT(putPayload);
-  bool success = false;
-  if (httpCode == HTTP_CODE_OK || httpCode == 201) {
-    String resp = http.getString();
-    #if ARDUINOJSON_VERSION_MAJOR >= 7
-      JsonDocument resDoc;
-    #else
-      DynamicJsonDocument resDoc(4096);
-    #endif
-    deserializeJson(resDoc, resp);
-    lvglFileSha = resDoc["content"]["sha"].as<String>();
-    success = true;
-  }
-  http.end();
-  return success;
-}
-
-// -------------------------------------------------------------
-// 5. ส่ง Heartbeat รายงานสถานะออนไลน์ของจอภาพขึ้น GitHub
+// 4. ส่ง Heartbeat รายงานสถานะออนไลน์ของจอภาพขึ้น GitHub
 // -------------------------------------------------------------
 inline bool sendDisplayHeartbeat() {
   if (WiFi.status() != WL_CONNECTED) return false;
 
-  // ดึงค่า state ปัจจุบันก่อนเพื่อไม่ให้ลบคำสั่งหรือเซนเซอร์ของบอร์ดรีเลย์
   fetchCloudCommands();
 
   String nowIso = getLvglIsoTimestamp();
@@ -570,7 +424,6 @@ inline bool sendDisplayHeartbeat() {
     DynamicJsonDocument rootDoc(4096);
   #endif
 
-  // คงสถานะคำสั่งของระบบ
   JsonObject commands = rootDoc["commands"].to<JsonObject>();
   for (int i = 0; i < 4; i++) {
     commands[String("relay") + (i + 1)] = relay_states[i];
@@ -580,14 +433,12 @@ inline bool sendDisplayHeartbeat() {
   commands["mode"] = "manual";
   commands["target_temp"] = 25.0;
 
-  // คงสถานะเซนเซอร์ Telemetry
   JsonObject telemetry = rootDoc["telemetry"].to<JsonObject>();
   telemetry["temperature"] = cloud_temp;
   telemetry["humidity"] = cloud_hum;
   telemetry["rssi"] = WiFi.RSSI();
   telemetry["last_seen"] = nowIso;
 
-  // อัปเดตข้อมูลสถานะจอภาพ Display
   JsonObject displayObj = rootDoc["display"].to<JsonObject>();
   displayObj["online"] = true;
   displayObj["last_seen"] = nowIso;
@@ -627,7 +478,7 @@ inline bool sendDisplayHeartbeat() {
 
   WiFiClientSecure client;
   client.setInsecure();
-  client.setTimeout(10);
+  client.setTimeout(6);
 
   HTTPClient http;
   String cleanRepo = GITHUB_REPO;
@@ -657,7 +508,7 @@ inline bool sendDisplayHeartbeat() {
     deserializeJson(resDoc, resp);
     lvglFileSha = resDoc["content"]["sha"].as<String>();
     success = true;
-    Serial.println("[LVGL-HEARTBEAT] ส่งรายงานสถานะจอภาพขึ้น GitHub สำเร็จ (หน้าเว็บจะขึ้นออนไลน์พร้อมใช้งาน)");
+    Serial.println("[LVGL-HEARTBEAT] ส่งรายงานสถานะจอภาพขึ้น GitHub สำเร็จ (หน้าเว็บขึ้นออนไลน์พร้อมใช้งาน)");
   } else {
     Serial.printf("[LVGL-HEARTBEAT] ส่งรายงานไม่สำเร็จ HTTP Code: %d\n", httpCode);
     if (httpCode == 409) lvglFileSha = "";
@@ -668,20 +519,32 @@ inline bool sendDisplayHeartbeat() {
 }
 
 // -------------------------------------------------------------
-// 6. ลูปหลักสำหรับเรียกใช้ใน loop()
+// 5. ลูปหลักสำหรับเรียกใช้ใน loop() (Core 0 Background Worker)
 // -------------------------------------------------------------
 inline void handleGitHubSync() {
   if (WiFi.status() != WL_CONNECTED) return;
 
   unsigned long now = millis();
 
-  // ดึงคำสั่งจากคลาวด์ทุก 2.5 วินาที
+  // 1. ตรวจสอบว่ามีคำสั่งจากการสัมผัสหน้าจอรอส่งหรือไม่ (Highest Priority)
+  if (hasPendingCloudCommand) {
+    // Debounce สั้นๆ 60ms เพื่อรวบคำสั่งหากสัมผัสปุ่มติดๆ กัน
+    if (now - pendingCommandRequestTime >= 60) {
+      hasPendingCloudCommand = false;
+      String action = pendingActionName;
+      pushCurrentStateToCloud(action);
+      lastCloudPollTime = now; // รีเซ็ตเวลา Poll เพื่อไม่ให้ดึงข้อมูลซ้ำทันที
+      return;
+    }
+  }
+
+  // 2. ดึงคำสั่งจากคลาวด์ตามรอบเวลา
   if (now - lastCloudPollTime >= CLOUD_POLL_INTERVAL_MS) {
     lastCloudPollTime = now;
     fetchCloudCommands();
   }
 
-  // ส่ง Heartbeat จอภาพทุก 30 วินาที
+  // 3. ส่ง Heartbeat จอภาพทุก 30 วินาที
   if (now - lastCloudHeartbeatTime >= CLOUD_HEARTBEAT_INTERVAL_MS) {
     lastCloudHeartbeatTime = now;
     sendDisplayHeartbeat();

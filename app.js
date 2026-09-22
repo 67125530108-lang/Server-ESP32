@@ -14,7 +14,7 @@
     branch: 'main',
     path: 'data/state.json',
     token: '',
-    interval: 5000
+    interval: 3000
   };
 
   let config = { ...DEFAULT_CONFIG };
@@ -167,6 +167,11 @@
     // Auto-fix: owner ต้องเป็น smart-iot-Th
     if (!config.owner || config.owner === '67125530108-lang') {
       config.owner = 'smart-iot-Th';
+    }
+
+    // Auto-fix: ปรับความถี่ดึงข้อมูลเป็น 3 วินาที เพื่อให้หน้าเว็บรับการกดจากหน้าจอได้ไวขึ้น
+    if (!config.interval || config.interval === 5000 || config.interval === '5000') {
+      config.interval = '3000';
     }
 
     // บันทึกค่าที่ถูกแก้ไขถูกต้องกลับลง localStorage ทันที

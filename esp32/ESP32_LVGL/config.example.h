@@ -28,8 +28,11 @@
 #define GITHUB_BRANCH       "main"
 #define GITHUB_FILE_PATH    "data/state.json"
 #define GITHUB_TOKEN        "YOUR_GITHUB_PERSONAL_ACCESS_TOKEN" // ใส่ Token ของท่านที่นี่
-#define CLOUD_POLL_INTERVAL_MS      2500  // ดึงคำสั่งทุก 2.5 วินาที
+#define CLOUD_POLL_INTERVAL_MS      3000  // ดึงคำสั่งทุก 3.0 วินาที
 #define CLOUD_HEARTBEAT_INTERVAL_MS 30000 // ส่ง Heartbeat จอภาพทุก 30 วินาที
+
+// FreeRTOS Mutex สำหรับจัดการความปลอดภัยเธรดระหว่าง GUI (Core 1) และ Network (Core 0)
+extern SemaphoreHandle_t lvgl_mutex;
 
 // -------------------------------------------------------------
 // ฟอนต์มาตรฐาน

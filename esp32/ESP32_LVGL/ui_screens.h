@@ -231,7 +231,12 @@ inline void cloud_relay_card_cb(lv_event_t *e) {
     relay_states[ch] = new_state;
     int pin = (ch == 0) ? PIN_RELAY_1 : (ch == 1) ? PIN_RELAY_2 : (ch == 2) ? PIN_RELAY_3 : PIN_RELAY_4;
     digitalWrite(pin, (RELAY_ACTIVE_LOW ? !new_state : new_state));
+    
+    // ป้องกันไม่ให้การเปลี่ยนสถานะของสวิตช์ส่ง event ซ้ำซ้อน
+    is_syncing_from_cloud = true;
     update_relay_card_style(ch);
+    is_syncing_from_cloud = false;
+
     Serial.printf("[CLOUD HUB] Card %d tapped: %s (Pin %d)\n", ch + 1, new_state ? "ON" : "OFF", pin);
     sendCloudCommand(ch, new_state);
   }
@@ -253,7 +258,11 @@ inline void cloud_led_card_cb(lv_event_t *e) {
   if (target == sw_led) return;
   led_state = !led_state;
   digitalWrite(PIN_LED_BOARD, led_state ? HIGH : LOW);
+  
+  is_syncing_from_cloud = true;
   update_led_card_style();
+  is_syncing_from_cloud = false;
+
   Serial.printf("[CLOUD HUB] LED card tapped: %s\n", led_state ? "ON" : "OFF");
   sendCloudLedCommand(led_state);
 }
@@ -265,8 +274,14 @@ inline void cloud_all_relays_cb(lv_event_t *e) {
     relay_states[i] = target_state;
     int pin = (i == 0) ? PIN_RELAY_1 : (i == 1) ? PIN_RELAY_2 : (i == 2) ? PIN_RELAY_3 : PIN_RELAY_4;
     digitalWrite(pin, (RELAY_ACTIVE_LOW ? !target_state : target_state));
+  }
+
+  is_syncing_from_cloud = true;
+  for (int i = 0; i < 4; i++) {
     update_relay_card_style(i);
   }
+  is_syncing_from_cloud = false;
+
   Serial.printf("[CLOUD HUB] All relays set to: %s\n", target_state ? "ALL ON" : "ALL OFF");
   sendAllRelaysCloudCommand(target_state);
 }

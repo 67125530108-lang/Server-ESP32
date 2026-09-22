@@ -14,6 +14,7 @@ LGFX tft;
 uint8_t *draw_buf = nullptr;
 lv_display_t *disp = nullptr;
 lv_indev_t *indev = nullptr;
+SemaphoreHandle_t lvgl_mutex = NULL;
 
 lv_obj_t *main_scr = nullptr;
 lv_obj_t *wifi_scr = nullptr;
@@ -85,10 +86,13 @@ void ui_init() {
   lv_timer_create(live_clock_timer_cb, 1000, NULL);
 }
 
-// FreeRTOS Task รัน UI บน Core 1 แยกอิสระ
+// FreeRTOS Task รัน UI บน Core 1 แยกอิสระ (Thread-safe ด้วย Mutex)
 void guiTask(void *pvParameters) {
   while (1) {
-    lv_timer_handler();
+    if (lvgl_mutex && xSemaphoreTake(lvgl_mutex, pdMS_TO_TICKS(25)) == pdTRUE) {
+      lv_timer_handler();
+      xSemaphoreGive(lvgl_mutex);
+    }
     vTaskDelay(pdMS_TO_TICKS(5));
   }
 }
@@ -101,6 +105,9 @@ void setup() {
   delay(100);
   Serial.begin(115200);
   Serial.println("\n[SYSTEM] ESP32 ST7796 LVGL v9 Modular System Starting...");
+
+  // สร้าง Mutex ควบคุมสิทธิ์การเข้าถึง LVGL ระหว่าง Core 0 และ Core 1
+  lvgl_mutex = xSemaphoreCreateMutex();
 
   // ตั้งค่าขาฮาร์ดแวร์ Relay & LED
   pinMode(PIN_RELAY_1, OUTPUT);
@@ -153,5 +160,5 @@ void setup() {
 void loop() {
   // จัดการซิงค์คำสั่งและส่ง Heartbeat ของจอภาพขึ้น GitHub Cloud Hub
   handleGitHubSync();
-  vTaskDelay(pdMS_TO_TICKS(50));
+  vTaskDelay(pdMS_TO_TICKS(10));
 }
