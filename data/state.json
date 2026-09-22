@@ -13,19 +13,19 @@
     "temperature": 26.5,
     "humidity": 67.6,
     "rssi": -59,
-    "last_seen": "2026-09-22T12:44:41Z"
+    "last_seen": "2026-09-22T12:44:48Z"
   },
   "display": {
     "online": true,
-    "last_seen": "2026-09-22T12:44:41Z",
+    "last_seen": "2026-09-22T12:44:48Z",
     "ip_address": "192.168.1.175",
     "rssi": -59,
-    "uptime_sec": 201,
-    "last_action": "ALL OFF"
+    "uptime_sec": 208,
+    "last_action": "Relay 1 ON"
   },
   "meta": {
     "version": "1.1.0",
     "updated_by": "display_touch",
-    "updated_at": "2026-09-22T12:44:41Z"
+    "updated_at": "2026-09-22T12:44:48Z"
   }
 }
