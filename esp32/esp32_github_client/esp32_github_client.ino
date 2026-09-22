@@ -31,6 +31,7 @@
 // ตัวแปรจัดเก็บสถานะ
 String currentFileSha = "";
 String cachedDisplayJson = "";
+String cachedCommandsJson = "";
 unsigned long lastPollTime = 0;
 unsigned long lastTelemetryTime = 0;
 
@@ -339,6 +340,12 @@ void fetchCommandsFromGitHub() {
         stateMode = stateDoc["commands"]["mode"] | "manual";
         stateTargetTemp = stateDoc["commands"]["target_temp"] | 25.0;
 
+        // แคชโครงสร้างคำสั่ง commands ทั้งหมดไว้เพื่อไม่ให้สูญหายหรือถูกเขียนทับตอนส่ง Telemetry
+        if (stateDoc["commands"].is<JsonObject>()) {
+          cachedCommandsJson = "";
+          serializeJson(stateDoc["commands"], cachedCommandsJson);
+        }
+
         // บันทึกข้อมูลสถานะจอภาพ ESP32_LVGL ไว้เพื่อคงค่าไว้เสมอตอนส่ง Telemetry
         if (stateDoc["display"].is<JsonObject>()) {
           cachedDisplayJson = "";
@@ -401,16 +408,33 @@ void pushTelemetryToGitHub() {
     DynamicJsonDocument rootDoc(4096);
   #endif
 
-  // คงสถานะคำสั่งปัจจุบันไว้
-  JsonObject commands = rootDoc["commands"].to<JsonObject>();
-  commands["relay1"] = stateRelay1;
-  commands["relay2"] = stateRelay2;
-  commands["relay3"] = stateRelay3;
-  commands["relay4"] = stateRelay4;
-  commands["led"] = stateLed;
-  commands["test_relays"] = false;
-  commands["mode"] = stateMode;
-  commands["target_temp"] = stateTargetTemp;
+  // คงสถานะคำสั่งปัจจุบันไว้ (ดึงจากแคชคำสั่งล่าสุดเสมอ เพื่อไม่ให้เขียนทับคำสั่งใหม่ที่ส่งมาจากจอสัมผัสหรือเว็บ)
+  bool usedCachedCommands = false;
+  if (cachedCommandsJson.length() > 0) {
+    #if ARDUINOJSON_VERSION_MAJOR >= 7
+      JsonDocument cmdDoc;
+    #else
+      DynamicJsonDocument cmdDoc(1024);
+    #endif
+    DeserializationError cmdErr = deserializeJson(cmdDoc, cachedCommandsJson);
+    if (!cmdErr) {
+      rootDoc["commands"] = cmdDoc;
+      rootDoc["commands"]["test_relays"] = false;
+      usedCachedCommands = true;
+    }
+  }
+
+  if (!usedCachedCommands) {
+    JsonObject commands = rootDoc["commands"].to<JsonObject>();
+    commands["relay1"] = stateRelay1;
+    commands["relay2"] = stateRelay2;
+    commands["relay3"] = stateRelay3;
+    commands["relay4"] = stateRelay4;
+    commands["led"] = stateLed;
+    commands["test_relays"] = false;
+    commands["mode"] = stateMode;
+    commands["target_temp"] = stateTargetTemp;
+  }
 
   // ข้อมูล Telemetry ล่าสุด
   JsonObject telemetry = rootDoc["telemetry"].to<JsonObject>();

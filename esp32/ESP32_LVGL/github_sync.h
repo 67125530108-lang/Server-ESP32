@@ -18,6 +18,8 @@ inline unsigned long lastCloudHeartbeatTime = 0;
 bool is_syncing_from_cloud = false;
 float cloud_temp = 25.0;
 float cloud_hum = 60.0;
+inline String cloud_mode = "manual";
+inline float cloud_target_temp = 25.0;
 
 // ฟังก์ชันประกาศล่วงหน้าสำหรับอัปเดต UI ใน ui_screens.h
 void update_relay_card_style(int ch);
@@ -171,36 +173,44 @@ inline bool fetchCloudCommands() {
         remoteRelays[3] = stateDoc["commands"]["relay4"] | false;
         bool remoteLed = stateDoc["commands"]["led"] | false;
 
+        // บันทึก mode และ target_temp จากคลาวด์ไว้เพื่อไม่ให้ถูกเขียนทับ
+        if (stateDoc["commands"].is<JsonObject>()) {
+          cloud_mode = stateDoc["commands"]["mode"] | cloud_mode;
+          cloud_target_temp = stateDoc["commands"]["target_temp"] | cloud_target_temp;
+        }
+
         // อ่านค่าอุณหภูมิและความชื้นจากบอร์ดรีเลย์เพื่อไปแสดงที่ Weather
         if (stateDoc["telemetry"].is<JsonObject>()) {
           cloud_temp = stateDoc["telemetry"]["temperature"] | cloud_temp;
           cloud_hum = stateDoc["telemetry"]["humidity"] | cloud_hum;
         }
 
-        // ตรวจสอบว่ามีการเปลี่ยนแปลงคำสั่งจากหน้าเว็บหรือไม่
+        // ตรวจสอบว่ามีการเปลี่ยนแปลงคำสั่งจากภายนอกหรือไม่ พร้อมระบบ Cooldown Hold Guard
+        unsigned long now = millis();
         bool changed = false;
         for (int i = 0; i < 4; i++) {
-          if (relay_states[i] != remoteRelays[i]) {
-            changed = true;
-            break;
+          // หากสวิตช์แชนเนลนี้เพิ่งถูกแตะหน้าจอไม่เกิน 4 วินาที ให้ข้าม (ไม่ยอมให้ค่าเก่าจากคลาวด์มาทับ)
+          if (now - lastTouchTime[i] >= MUTATION_HOLD_TIME_MS) {
+            if (relay_states[i] != remoteRelays[i]) {
+              relay_states[i] = remoteRelays[i];
+              int pin = (i == 0) ? PIN_RELAY_1 : (i == 1) ? PIN_RELAY_2 : (i == 2) ? PIN_RELAY_3 : PIN_RELAY_4;
+              digitalWrite(pin, (RELAY_ACTIVE_LOW ? !relay_states[i] : relay_states[i]));
+              changed = true;
+            }
           }
         }
-        if (led_state != remoteLed) changed = true;
+        if (now - lastLedTouchTime >= MUTATION_HOLD_TIME_MS) {
+          if (led_state != remoteLed) {
+            led_state = remoteLed;
+            digitalWrite(PIN_LED_BOARD, led_state ? HIGH : LOW);
+            changed = true;
+          }
+        }
 
         if (changed) {
           Serial.println("[LVGL-SYNC] พบคำสั่งใหม่จาก Cloud อัปเดตสวิตช์บนหน้าจอ...");
           // ตั้งค่า Flag ป้องกันไม่ให้ Event Listener ของสวิตช์ส่งคำสั่งย้อนกลับไปคลาวด์ซ้ำ (Anti-Echo)
           is_syncing_from_cloud = true;
-
-          // สั่งงานขาฮาร์ดแวร์จริงทันที
-          for (int i = 0; i < 4; i++) {
-            relay_states[i] = remoteRelays[i];
-            int pin = (i == 0) ? PIN_RELAY_1 : (i == 1) ? PIN_RELAY_2 : (i == 2) ? PIN_RELAY_3 : PIN_RELAY_4;
-            digitalWrite(pin, (RELAY_ACTIVE_LOW ? !relay_states[i] : relay_states[i]));
-          }
-
-          led_state = remoteLed;
-          digitalWrite(PIN_LED_BOARD, led_state ? HIGH : LOW);
 
           // ป้องกันความปลอดภัยของหน่วยความจำ LVGL ด้วย Mutex
           if (lvgl_mutex && xSemaphoreTake(lvgl_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
@@ -251,6 +261,9 @@ inline void queueCloudCommand(const String& actionName) {
 // -------------------------------------------------------------
 inline bool sendCloudCommand(int targetRelay, bool targetState) {
   if (is_syncing_from_cloud) return true;
+  if (targetRelay >= 0 && targetRelay < 4) {
+    lastTouchTime[targetRelay] = millis();
+  }
   String action = String("Relay ") + (targetRelay + 1) + (targetState ? " ON" : " OFF");
   queueCloudCommand(action);
   return true;
@@ -258,6 +271,10 @@ inline bool sendCloudCommand(int targetRelay, bool targetState) {
 
 inline bool sendAllRelaysCloudCommand(bool targetState) {
   if (is_syncing_from_cloud) return true;
+  unsigned long now = millis();
+  for (int i = 0; i < 4; i++) {
+    lastTouchTime[i] = now;
+  }
   String action = String(targetState ? "ALL ON" : "ALL OFF");
   queueCloudCommand(action);
   return true;
@@ -265,6 +282,7 @@ inline bool sendAllRelaysCloudCommand(bool targetState) {
 
 inline bool sendCloudLedCommand(bool targetState) {
   if (is_syncing_from_cloud) return true;
+  lastLedTouchTime = millis();
   String action = String("LED ") + (targetState ? "ON" : "OFF");
   queueCloudCommand(action);
   return true;
@@ -297,8 +315,8 @@ inline bool pushCurrentStateToCloud(const String& actionName) {
   commands["relay4"] = relay_states[3];
   commands["led"] = led_state;
   commands["test_relays"] = false;
-  commands["mode"] = "manual";
-  commands["target_temp"] = 25.0;
+  commands["mode"] = cloud_mode;
+  commands["target_temp"] = cloud_target_temp;
 
   // คงสถานะเซนเซอร์ Telemetry ของบอร์ดรีเลย์ไว้
   JsonObject telemetry = rootDoc["telemetry"].to<JsonObject>();
@@ -414,6 +432,14 @@ inline bool pushCurrentStateToCloud(const String& actionName) {
 inline bool sendDisplayHeartbeat() {
   if (WiFi.status() != WL_CONNECTED) return false;
 
+  // หากเพิ่งมีการสัมผัสหรือมีคำสั่งรอส่งอยู่ ให้ข้ามการส่ง Heartbeat ไปก่อนเพื่อเปิดทางด่วนให้คำสั่ง
+  if (hasPendingCloudCommand) return false;
+  unsigned long now = millis();
+  for (int i = 0; i < 4; i++) {
+    if (now - lastTouchTime[i] < MUTATION_HOLD_TIME_MS) return false;
+  }
+  if (now - lastLedTouchTime < MUTATION_HOLD_TIME_MS) return false;
+
   fetchCloudCommands();
 
   String nowIso = getLvglIsoTimestamp();
@@ -430,8 +456,8 @@ inline bool sendDisplayHeartbeat() {
   }
   commands["led"] = led_state;
   commands["test_relays"] = false;
-  commands["mode"] = "manual";
-  commands["target_temp"] = 25.0;
+  commands["mode"] = cloud_mode;
+  commands["target_temp"] = cloud_target_temp;
 
   JsonObject telemetry = rootDoc["telemetry"].to<JsonObject>();
   telemetry["temperature"] = cloud_temp;
@@ -526,16 +552,18 @@ inline void handleGitHubSync() {
 
   unsigned long now = millis();
 
-  // 1. ตรวจสอบว่ามีคำสั่งจากการสัมผัสหน้าจอรอส่งหรือไม่ (Highest Priority)
+  // 1. ตรวจสอบว่ามีคำสั่งจากการสัมผัสหน้าจอรอส่งหรือไม่ (Highest Priority Preemption)
   if (hasPendingCloudCommand) {
-    // Debounce สั้นๆ 60ms เพื่อรวบคำสั่งหากสัมผัสปุ่มติดๆ กัน
-    if (now - pendingCommandRequestTime >= 60) {
+    // Debounce สั้นๆ 40ms เพื่อรวบคำสั่งหากสัมผัสปุ่มติดๆ กัน
+    if (now - pendingCommandRequestTime >= 40) {
       hasPendingCloudCommand = false;
       String action = pendingActionName;
       pushCurrentStateToCloud(action);
-      lastCloudPollTime = now; // รีเซ็ตเวลา Poll เพื่อไม่ให้ดึงข้อมูลซ้ำทันที
+      lastCloudPollTime = now;       // เลื่อนเวลา Poll ป้องกันการชนกัน
+      lastCloudHeartbeatTime = now;  // เลื่อนเวลา Heartbeat ป้องกันการชนกัน
       return;
     }
+    return; // ระงับ Poll/Heartbeat ชั่วคราวระหว่างรอส่งคำสั่งสัมผัส
   }
 
   // 2. ดึงคำสั่งจากคลาวด์ตามรอบเวลา

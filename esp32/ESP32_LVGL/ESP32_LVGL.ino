@@ -63,6 +63,8 @@ lv_obj_t *sw_led = nullptr;
 lv_obj_t *cloud_status_badge = nullptr;
 bool relay_states[4] = {false, false, false, false};
 bool led_state = false;
+unsigned long lastTouchTime[4] = {0, 0, 0, 0};
+unsigned long lastLedTouchTime = 0;
 
 char selected_ssid[64] = "";
 bool is_connected = false;

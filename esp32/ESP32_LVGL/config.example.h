@@ -30,9 +30,14 @@
 #define GITHUB_TOKEN        "YOUR_GITHUB_PERSONAL_ACCESS_TOKEN" // ใส่ Token ของท่านที่นี่
 #define CLOUD_POLL_INTERVAL_MS      3000  // ดึงคำสั่งทุก 3.0 วินาที
 #define CLOUD_HEARTBEAT_INTERVAL_MS 30000 // ส่ง Heartbeat จอภาพทุก 30 วินาที
+#define MUTATION_HOLD_TIME_MS       4000  // Cooldown Protection Guard: ล็อกสถานะ 4 วินาที ป้องกันข้อมูลเก่าจาก Cloud มาเขียนทับ
 
 // FreeRTOS Mutex สำหรับจัดการความปลอดภัยเธรดระหว่าง GUI (Core 1) และ Network (Core 0)
 extern SemaphoreHandle_t lvgl_mutex;
+
+// ตัวแปรบันทึกเวลาสัมผัสล่าสุด ป้องกันการดีดกลับ (State Snap-Back Guard)
+extern unsigned long lastTouchTime[4];
+extern unsigned long lastLedTouchTime;
 
 // -------------------------------------------------------------
 // ฟอนต์มาตรฐาน

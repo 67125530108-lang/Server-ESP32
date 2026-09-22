@@ -212,6 +212,7 @@ inline void cloud_relay_toggle_cb(lv_event_t *e) {
   int ch = (int)(intptr_t)lv_event_get_user_data(e);
   bool is_on = lv_obj_has_state(sw, LV_STATE_CHECKED);
   if (ch >= 0 && ch < 4) {
+    lastTouchTime[ch] = millis(); // Cooldown Guard: คุ้มครองสถานะที่เพิ่งแตะ ป้องกันข้อมูลเก่าจาก Cloud มาทับ
     relay_states[ch] = is_on;
     int pin = (ch == 0) ? PIN_RELAY_1 : (ch == 1) ? PIN_RELAY_2 : (ch == 2) ? PIN_RELAY_3 : PIN_RELAY_4;
     digitalWrite(pin, (RELAY_ACTIVE_LOW ? !is_on : is_on));
@@ -227,6 +228,7 @@ inline void cloud_relay_card_cb(lv_event_t *e) {
   int ch = (int)(intptr_t)lv_event_get_user_data(e);
   if (ch >= 0 && ch < 4) {
     if (target == sw_relay[ch]) return; // ถ้าแตะที่ตัวสวิตช์โดยตรง ปล่อยให้ switch event ทำงาน
+    lastTouchTime[ch] = millis(); // Cooldown Guard
     bool new_state = !relay_states[ch];
     relay_states[ch] = new_state;
     int pin = (ch == 0) ? PIN_RELAY_1 : (ch == 1) ? PIN_RELAY_2 : (ch == 2) ? PIN_RELAY_3 : PIN_RELAY_4;
@@ -244,6 +246,7 @@ inline void cloud_relay_card_cb(lv_event_t *e) {
 
 inline void cloud_led_toggle_cb(lv_event_t *e) {
   if (is_syncing_from_cloud) return;
+  lastLedTouchTime = millis(); // Cooldown Guard
   lv_obj_t *sw = (lv_obj_t *)lv_event_get_target(e);
   led_state = lv_obj_has_state(sw, LV_STATE_CHECKED);
   digitalWrite(PIN_LED_BOARD, led_state ? HIGH : LOW);
@@ -256,6 +259,7 @@ inline void cloud_led_card_cb(lv_event_t *e) {
   if (is_syncing_from_cloud) return;
   lv_obj_t *target = (lv_obj_t *)lv_event_get_target(e);
   if (target == sw_led) return;
+  lastLedTouchTime = millis(); // Cooldown Guard
   led_state = !led_state;
   digitalWrite(PIN_LED_BOARD, led_state ? HIGH : LOW);
   
@@ -270,7 +274,9 @@ inline void cloud_led_card_cb(lv_event_t *e) {
 inline void cloud_all_relays_cb(lv_event_t *e) {
   if (is_syncing_from_cloud) return;
   bool target_state = (bool)(intptr_t)lv_event_get_user_data(e);
+  unsigned long now = millis();
   for (int i = 0; i < 4; i++) {
+    lastTouchTime[i] = now; // Cooldown Guard ทั้ง 4 ช่อง
     relay_states[i] = target_state;
     int pin = (i == 0) ? PIN_RELAY_1 : (i == 1) ? PIN_RELAY_2 : (i == 2) ? PIN_RELAY_3 : PIN_RELAY_4;
     digitalWrite(pin, (RELAY_ACTIVE_LOW ? !target_state : target_state));

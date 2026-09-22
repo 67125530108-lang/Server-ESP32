@@ -24,6 +24,16 @@
   let pollIntervalId = null;
   let isCommitting = false;
 
+  // Cooldown Protection Locks ป้องกันสถานะสวิตช์เด้งกลับ (Hold Guard 3.5 วินาที)
+  const optimisticLocks = {
+    relay1: 0,
+    relay2: 0,
+    relay3: 0,
+    relay4: 0,
+    led: 0
+  };
+  const OPTIMISTIC_HOLD_MS = 3500;
+
   // DOM Elements
   const el = {
     statusBadge: document.getElementById('device-status-badge'),
@@ -475,30 +485,38 @@
     // 1. Commands
     if (state.commands) {
       const { relay1, relay2, relay3, relay4, led, mode, target_temp } = state.commands;
+      const now = Date.now();
 
-      el.cmdRelay1.checked = !!relay1;
-      el.relay1Label.textContent = relay1 ? 'ON' : 'OFF';
-      el.relay1Label.className = `state-text ${relay1 ? 'active' : ''}`;
+      // ป้องกันการเด้งกลับ (Hold Guard): หากเพิ่งกดสวิตช์บนหน้าเว็บไม่เกิน OPTIMISTIC_HOLD_MS จะไม่ยอมให้ข้อมูลเก่ามาทับ
+      if (now - (optimisticLocks.relay1 || 0) >= OPTIMISTIC_HOLD_MS) {
+        el.cmdRelay1.checked = !!relay1;
+        el.relay1Label.textContent = relay1 ? 'ON' : 'OFF';
+        el.relay1Label.className = `state-text ${relay1 ? 'active' : ''}`;
+      }
 
-      el.cmdRelay2.checked = !!relay2;
-      el.relay2Label.textContent = relay2 ? 'ON' : 'OFF';
-      el.relay2Label.className = `state-text ${relay2 ? 'active' : ''}`;
+      if (now - (optimisticLocks.relay2 || 0) >= OPTIMISTIC_HOLD_MS) {
+        el.cmdRelay2.checked = !!relay2;
+        el.relay2Label.textContent = relay2 ? 'ON' : 'OFF';
+        el.relay2Label.className = `state-text ${relay2 ? 'active' : ''}`;
+      }
 
-      if (el.cmdRelay3 && el.relay3Label) {
+      if (el.cmdRelay3 && el.relay3Label && now - (optimisticLocks.relay3 || 0) >= OPTIMISTIC_HOLD_MS) {
         el.cmdRelay3.checked = !!relay3;
         el.relay3Label.textContent = relay3 ? 'ON' : 'OFF';
         el.relay3Label.className = `state-text ${relay3 ? 'active' : ''}`;
       }
 
-      if (el.cmdRelay4 && el.relay4Label) {
+      if (el.cmdRelay4 && el.relay4Label && now - (optimisticLocks.relay4 || 0) >= OPTIMISTIC_HOLD_MS) {
         el.cmdRelay4.checked = !!relay4;
         el.relay4Label.textContent = relay4 ? 'ON' : 'OFF';
         el.relay4Label.className = `state-text ${relay4 ? 'active' : ''}`;
       }
 
-      el.cmdLed.checked = !!led;
-      el.ledLabel.textContent = led ? 'ON' : 'OFF';
-      el.ledLabel.className = `state-text ${led ? 'active' : ''}`;
+      if (now - (optimisticLocks.led || 0) >= OPTIMISTIC_HOLD_MS) {
+        el.cmdLed.checked = !!led;
+        el.ledLabel.textContent = led ? 'ON' : 'OFF';
+        el.ledLabel.className = `state-text ${led ? 'active' : ''}`;
+      }
 
       if (mode === 'manual') {
         el.btnModeManual.classList.add('active');
@@ -751,7 +769,9 @@
 
   // Helper: ตั้งค่ารีเลย์ทุกช่องพร้อมกัน
   function setAllRelays(state) {
+    const now = Date.now();
     [1, 2, 3, 4].forEach(i => {
+      optimisticLocks[`relay${i}`] = now;
       const chk = el[`cmdRelay${i}`];
       const lbl = el[`relay${i}Label`];
       if (chk && lbl) {
@@ -767,8 +787,9 @@
   // Event Listeners
   // =========================================================================
   function bindEvents() {
-    // Switch Toggles (ส่งคำสั่งทันทีแบบเรียลไทม์)
+    // Switch Toggles (ส่งคำสั่งทันทีแบบเรียลไทม์ พร้อม Cooldown Guard ป้องกันเด้งกลับ)
     el.cmdRelay1.addEventListener('change', () => {
+      optimisticLocks.relay1 = Date.now();
       const on = el.cmdRelay1.checked;
       el.relay1Label.textContent = on ? 'ON' : 'OFF';
       el.relay1Label.className = `state-text ${on ? 'active' : ''}`;
@@ -777,6 +798,7 @@
     });
 
     el.cmdRelay2.addEventListener('change', () => {
+      optimisticLocks.relay2 = Date.now();
       const on = el.cmdRelay2.checked;
       el.relay2Label.textContent = on ? 'ON' : 'OFF';
       el.relay2Label.className = `state-text ${on ? 'active' : ''}`;
@@ -786,6 +808,7 @@
 
     if (el.cmdRelay3) {
       el.cmdRelay3.addEventListener('change', () => {
+        optimisticLocks.relay3 = Date.now();
         const on = el.cmdRelay3.checked;
         el.relay3Label.textContent = on ? 'ON' : 'OFF';
         el.relay3Label.className = `state-text ${on ? 'active' : ''}`;
@@ -796,6 +819,7 @@
 
     if (el.cmdRelay4) {
       el.cmdRelay4.addEventListener('change', () => {
+        optimisticLocks.relay4 = Date.now();
         const on = el.cmdRelay4.checked;
         el.relay4Label.textContent = on ? 'ON' : 'OFF';
         el.relay4Label.className = `state-text ${on ? 'active' : ''}`;
@@ -841,6 +865,7 @@
     }
 
     el.cmdLed.addEventListener('change', () => {
+      optimisticLocks.led = Date.now();
       const on = el.cmdLed.checked;
       el.ledLabel.textContent = on ? 'ON' : 'OFF';
       el.ledLabel.className = `state-text ${on ? 'active' : ''}`;
