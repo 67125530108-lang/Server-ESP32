@@ -1,7 +1,7 @@
 {
   "commands": {
     "relay1": false,
-    "relay2": true,
+    "relay2": false,
     "relay3": false,
     "relay4": false,
     "led": false,
@@ -12,20 +12,20 @@
   "telemetry": {
     "temperature": 27.9,
     "humidity": 60.6,
-    "rssi": -71,
-    "last_seen": "2026-09-22T12:43:11Z"
+    "rssi": -80,
+    "last_seen": "2026-09-22T12:43:16Z"
   },
   "display": {
     "online": true,
-    "last_seen": "2026-09-22T12:43:11Z",
+    "last_seen": "2026-09-22T12:43:16Z",
     "ip_address": "192.168.1.175",
-    "rssi": -71,
-    "uptime_sec": 112,
-    "last_action": "Relay 2 ON"
+    "rssi": -80,
+    "uptime_sec": 116,
+    "last_action": "Relay 2 OFF"
   },
   "meta": {
     "version": "1.1.0",
     "updated_by": "display_touch",
-    "updated_at": "2026-09-22T12:43:11Z"
+    "updated_at": "2026-09-22T12:43:16Z"
   }
 }
