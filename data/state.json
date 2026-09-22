@@ -12,20 +12,20 @@
   "telemetry": {
     "temperature": 27.6,
     "humidity": 66.3,
-    "rssi": -57,
-    "last_seen": "2026-09-22T13:59:17Z"
+    "rssi": -55,
+    "last_seen": "2026-09-22T13:59:48Z"
   },
   "display": {
     "online": true,
-    "last_seen": "2026-09-22T13:59:17Z",
+    "last_seen": "2026-09-22T13:59:48Z",
     "ip_address": "192.168.1.175",
-    "rssi": -57,
-    "uptime_sec": 785,
-    "last_action": "Relay 2 OFF"
+    "rssi": -55,
+    "uptime_sec": 817,
+    "device_name": "ESP32_ST7796_Touchscreen"
   },
   "meta": {
     "version": "1.1.0",
-    "updated_by": "display_touch",
-    "updated_at": "2026-09-22T13:59:17Z"
+    "updated_by": "display_heartbeat",
+    "updated_at": "2026-09-22T13:59:48Z"
   }
 }
