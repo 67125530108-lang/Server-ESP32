@@ -1,12 +1,12 @@
 {
   "commands": {
-    "relay1": true,
+    "relay1": false,
     "relay2": false,
     "relay3": false,
-    "relay4": true,
+    "relay4": false,
     "led": false,
     "test_relays": false,
-    "mode": "manual",
+    "mode": "standby",
     "target_temp": 25
   },
   "telemetry": {
@@ -24,8 +24,8 @@
     "device_name": "ESP32_ST7796_Touchscreen"
   },
   "meta": {
-    "version": "1.1.0",
-    "updated_by": "display_heartbeat",
-    "updated_at": "2026-09-22T14:00:53Z"
+    "version": "1.0.0",
+    "updated_by": "web_dashboard",
+    "updated_at": "2026-09-22T14:01:01.967Z"
   }
 }
