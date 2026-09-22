@@ -12,14 +12,20 @@
   "telemetry": {
     "temperature": 29.4,
     "humidity": 66.1,
-    "rssi": -74,
-    "uptime_sec": 272,
-    "last_seen": "2026-09-22T12:45:53Z",
-    "ip_address": "192.168.1.192"
+    "rssi": -54,
+    "last_seen": "2026-09-22T12:46:06Z"
+  },
+  "display": {
+    "online": true,
+    "last_seen": "2026-09-22T12:46:06Z",
+    "ip_address": "192.168.1.175",
+    "rssi": -54,
+    "uptime_sec": 286,
+    "last_action": "ALL ON"
   },
   "meta": {
-    "version": "1.0.0",
-    "updated_by": "ESP32_Device",
-    "updated_at": "2026-09-22T12:45:53Z"
+    "version": "1.1.0",
+    "updated_by": "display_touch",
+    "updated_at": "2026-09-22T12:46:06Z"
   }
 }
