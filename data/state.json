@@ -17,6 +17,15 @@
     "last_seen": "2026-09-22T09:50:26Z",
     "ip_address": "192.168.1.192"
   },
+  "display": {
+    "online": false,
+    "last_seen": "2026-09-22T09:50:26Z",
+    "ip_address": "192.168.1.170",
+    "rssi": -65,
+    "uptime_sec": 0,
+    "device_name": "ESP32_LVGL_Display",
+    "last_action": "พร้อมรับคำสั่ง"
+  },
   "meta": {
     "version": "1.0.0",
     "updated_by": "ESP32_Device",

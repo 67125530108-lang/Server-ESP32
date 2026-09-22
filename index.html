@@ -95,9 +95,14 @@
       </div>
 
       <div class="header-actions">
-        <div id="device-status-badge" class="status-badge offline" title="สถานะการเชื่อมต่อบอร์ด ESP32">
+        <div id="device-status-badge" class="status-badge offline" title="สถานะการเชื่อมต่อบอร์ดรีเลย์ ESP32 (4-CH Relay)">
           <span class="status-dot"></span>
-          <span id="device-status-text">ตรวจจับสถานะ...</span>
+          <span id="device-status-text">บอร์ดรีเลย์: ตรวจจับ...</span>
+        </div>
+
+        <div id="display-status-badge" class="status-badge offline" title="สถานะการเชื่อมต่อจอสัมผัส ESP32 LVGL (ST7796 Touchscreen)">
+          <span class="status-dot"></span>
+          <span id="display-status-text">จอสัมผัส: ตรวจจับ...</span>
         </div>
         
         <button id="btn-refresh" class="btn-icon" title="รีเฟรชข้อมูลจาก GitHub ทันที" aria-label="รีเฟรช">
@@ -454,11 +459,56 @@
           </div>
         </div>
 
+        <!-- Dual Device Telemetry Matrix -->
+        <div class="devices-status-grid">
+          <!-- Relay Board Card -->
+          <div class="device-card" id="card-relay-board">
+            <div class="device-card-header">
+              <div class="device-title-box">
+                <span class="device-type-icon">🔌</span>
+                <div>
+                  <div class="device-name">บอร์ดควบคุมรีเลย์ (ESP32 Relay)</div>
+                  <div class="device-sub" id="device-relay-sub">กำลังตรวจจับสถานะ...</div>
+                </div>
+              </div>
+              <span class="device-pill offline" id="pill-relay-board">Offline</span>
+            </div>
+            <div class="device-meta-row">
+              <span>IP: <code id="tele-ip-detail">--</code></span>
+              <span>RSSI: <span id="tele-relay-rssi-val">--</span> dBm</span>
+              <span>Uptime: <span id="tele-relay-uptime-val">--</span></span>
+            </div>
+          </div>
+
+          <!-- Touchscreen Display Card -->
+          <div class="device-card" id="card-display-board">
+            <div class="device-card-header">
+              <div class="device-title-box">
+                <span class="device-type-icon">🖥️</span>
+                <div>
+                  <div class="device-name">จอสัมผัสควบคุม (ESP32 LVGL)</div>
+                  <div class="device-sub" id="device-display-sub">กำลังตรวจจับสถานะ...</div>
+                </div>
+              </div>
+              <span class="device-pill offline" id="pill-display-board">Offline</span>
+            </div>
+            <div class="device-meta-row">
+              <span>IP: <code id="tele-disp-ip">--</code></span>
+              <span>RSSI: <span id="tele-disp-rssi">--</span> dBm</span>
+              <span>คำสั่งล่าสุดจากจอ: <span id="tele-disp-action" class="disp-action-text">--</span></span>
+            </div>
+          </div>
+        </div>
+
         <!-- System Meta Info Box -->
         <div class="meta-info-box">
           <div class="meta-row">
             <span class="meta-label">รายงานล่าสุด (Last Seen):</span>
             <span class="meta-val" id="tele-last-seen">--</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">คำสั่งล่าสุดอัปเดตโดย (Updated By):</span>
+            <span class="meta-val" id="tele-updated-by">--</span>
           </div>
           <div class="meta-row">
             <span class="meta-label">Git Commit SHA ปัจจุบัน:</span>

@@ -30,6 +30,7 @@
 
 // ตัวแปรจัดเก็บสถานะ
 String currentFileSha = "";
+String cachedDisplayJson = "";
 unsigned long lastPollTime = 0;
 unsigned long lastTelemetryTime = 0;
 
@@ -338,6 +339,12 @@ void fetchCommandsFromGitHub() {
         stateMode = stateDoc["commands"]["mode"] | "manual";
         stateTargetTemp = stateDoc["commands"]["target_temp"] | 25.0;
 
+        // บันทึกข้อมูลสถานะจอภาพ ESP32_LVGL ไว้เพื่อคงค่าไว้เสมอตอนส่ง Telemetry
+        if (stateDoc["display"].is<JsonObject>()) {
+          cachedDisplayJson = "";
+          serializeJson(stateDoc["display"], cachedDisplayJson);
+        }
+
         Serial.println("[GitHub] อัปเดตคำสั่งสำเร็จ:");
         Serial.printf("  > Relay 1: %s (ขา %d)\n", stateRelay1 ? "ON" : "OFF", PIN_RELAY_1);
         Serial.printf("  > Relay 2: %s (ขา %d)\n", stateRelay2 ? "ON" : "OFF", PIN_RELAY_2);
@@ -414,10 +421,23 @@ void pushTelemetryToGitHub() {
   telemetry["last_seen"] = nowIso;
   telemetry["ip_address"] = WiFi.localIP().toString();
 
+  // คงสถานะจอภาพ ESP32_LVGL ไว้เสมอ (ถ้ามี) เพื่อไม่ให้สถานะหน้าจอหาย
+  if (cachedDisplayJson.length() > 0) {
+    #if ARDUINOJSON_VERSION_MAJOR >= 7
+      JsonDocument dispDoc;
+    #else
+      DynamicJsonDocument dispDoc(1024);
+    #endif
+    DeserializationError dispErr = deserializeJson(dispDoc, cachedDisplayJson);
+    if (!dispErr) {
+      rootDoc["display"] = dispDoc;
+    }
+  }
+
   // Meta
   JsonObject meta = rootDoc["meta"].to<JsonObject>();
-  meta["version"] = "1.0.0";
-  meta["updated_by"] = "ESP32_Device";
+  meta["version"] = "1.1.0";
+  meta["updated_by"] = "ESP32_Relay_Device";
   meta["updated_at"] = nowIso;
 
   // แปลงเป็น JSON String และเข้ารหัส Base64

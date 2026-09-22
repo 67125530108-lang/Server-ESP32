@@ -28,6 +28,8 @@
   const el = {
     statusBadge: document.getElementById('device-status-badge'),
     statusText: document.getElementById('device-status-text'),
+    displayStatusBadge: document.getElementById('display-status-badge'),
+    displayStatusText: document.getElementById('display-status-text'),
     btnRefresh: document.getElementById('btn-refresh'),
     btnOpenSettings: document.getElementById('btn-open-settings'),
     noticeBar: document.getElementById('notice-bar'),
@@ -79,6 +81,20 @@
     teleIp: document.getElementById('tele-ip'),
     teleLastSeen: document.getElementById('tele-last-seen'),
     teleSha: document.getElementById('tele-sha'),
+    teleUpdatedBy: document.getElementById('tele-updated-by'),
+
+    // Dual Device Status Matrix
+    pillRelayBoard: document.getElementById('pill-relay-board'),
+    deviceRelaySub: document.getElementById('device-relay-sub'),
+    teleIpDetail: document.getElementById('tele-ip-detail'),
+    teleRelayRssiVal: document.getElementById('tele-relay-rssi-val'),
+    teleRelayUptimeVal: document.getElementById('tele-relay-uptime-val'),
+
+    pillDisplayBoard: document.getElementById('pill-display-board'),
+    deviceDisplaySub: document.getElementById('device-display-sub'),
+    teleDispIp: document.getElementById('tele-disp-ip'),
+    teleDispRssi: document.getElementById('tele-disp-rssi'),
+    teleDispAction: document.getElementById('tele-disp-action'),
 
     // ESP32 Status Verification Banner
     espBanner: document.getElementById('esp-status-banner'),
@@ -246,6 +262,14 @@
       const decodedStr = decodeBase64Utf8(data.content);
       const parsed = JSON.parse(decodedStr);
 
+      // ตรวจสอบว่ามีคำสั่งจากจอสัมผัส ESP32_LVGL เข้ามาใหม่หรือไม่
+      if (parsed.meta && parsed.meta.updated_by === 'display_touch') {
+        const isNewTouch = !currentState || !currentState.meta || currentState.meta.updated_at !== parsed.meta.updated_at;
+        if (isNewTouch) {
+          log(`🖥️ ได้รับคำสั่งจากจอสัมผัส ESP32 LVGL: ${formatRelaySummary(parsed.commands)}`, 'info');
+        }
+      }
+
       currentState = parsed;
       updateUIWithState(currentState);
       el.syncIndicator.textContent = `ซิงค์แล้ว (${new Date().toLocaleTimeString('th-TH')})`;
@@ -314,8 +338,9 @@
 
       const nowIso = new Date().toISOString();
       const updatedState = {
+        ...(currentState || {}),
         commands: commands,
-        telemetry: currentState ? currentState.telemetry : {
+        telemetry: (currentState && currentState.telemetry) ? currentState.telemetry : {
           temperature: 0,
           humidity: 0,
           rssi: 0,
@@ -329,6 +354,11 @@
           updated_at: nowIso
         }
       };
+
+      // บันทึกและรักษาข้อมูล display ของจอสัมผัสไว้เสมอ ไม่ให้ถูก Dashboard เขียนทับ
+      if (currentState && currentState.display) {
+        updatedState.display = currentState.display;
+      }
 
       const jsonStr = JSON.stringify(updatedState, null, 2);
       const encodedContent = encodeBase64Utf8(jsonStr);
@@ -500,27 +530,41 @@
       updateRelayTilesVisuals();
     }
 
-    // 2. Telemetry & ESP32 Live Verification
+    // 2. Telemetry & ESP32 Relay Board Verification
     // ตรวจสอบจาก telemetry.last_seen เป็นหลัก (ไม่ตัดการเชื่อมต่อเมื่อ Dashboard ทำการบันทึกคำสั่ง)
     const hasLastSeen = !!(state.telemetry && state.telemetry.last_seen);
 
     if (hasLastSeen) {
       const { temperature, humidity, rssi, uptime_sec, last_seen, ip_address } = state.telemetry;
       const lastSeenDate = new Date(last_seen);
-      el.teleLastSeen.textContent = lastSeenDate.toLocaleString('th-TH');
+      if (el.teleLastSeen) el.teleLastSeen.textContent = lastSeenDate.toLocaleString('th-TH');
 
       const diffSeconds = (Date.now() - lastSeenDate.getTime()) / 1000;
 
-      // ESP32 ส่ง Telemetry ทุกๆ 45 วินาที ให้ Threshold เป็น 120 วินาทีเพื่อความเสถียร ไม่หลุดบ่อย
+      // บอร์ดรีเลย์ ESP32 ส่ง Telemetry ทุกๆ 45 วินาที ให้ Threshold เป็น 120 วินาทีเพื่อความเสถียร
       if (diffSeconds <= 120) {
-        setDeviceOnline(true, `ESP32 ออนไลน์ (${Math.max(1, Math.round(diffSeconds))} วิที่แล้ว)`);
-        setEspBanner('online', '🟢', 'บอร์ด ESP32 ออนไลน์และส่งข้อมูลปกติ',
+        setDeviceOnline(true, `บอร์ดรีเลย์: ออนไลน์ (${Math.max(1, Math.round(diffSeconds))} วิที่แล้ว)`);
+        if (el.pillRelayBoard) {
+          el.pillRelayBoard.className = 'device-pill online';
+          el.pillRelayBoard.textContent = 'ออนไลน์';
+        }
+        if (el.deviceRelaySub) el.deviceRelaySub.textContent = 'ทำงานปกติ (ส่งข้อมูลทุก 45 วิ)';
+        setEspBanner('online', '🟢', 'บอร์ด ESP32 รีเลย์ ออนไลน์และส่งข้อมูลปกติ',
           `เชื่อมต่อกับ GitHub สำเร็จ ล่าสุดเมื่อ ${Math.max(1, Math.round(diffSeconds))} วินาทีที่แล้ว (${lastSeenDate.toLocaleTimeString('th-TH')})`);
       } else {
-        setDeviceOnline(false, `ESP32 ออฟไลน์ (${formatTimeDiff(diffSeconds)})`);
-        setEspBanner('offline', '🔴', 'บอร์ด ESP32 ออฟไลน์ (ขาดการติดต่อ)',
+        setDeviceOnline(false, `บอร์ดรีเลย์: ออฟไลน์ (${formatTimeDiff(diffSeconds)})`);
+        if (el.pillRelayBoard) {
+          el.pillRelayBoard.className = 'device-pill offline';
+          el.pillRelayBoard.textContent = 'ออฟไลน์';
+        }
+        if (el.deviceRelaySub) el.deviceRelaySub.textContent = `ขาดการติดต่อ (${formatTimeDiff(diffSeconds)})`;
+        setEspBanner('offline', '🔴', 'บอร์ด ESP32 รีเลย์ ออฟไลน์ (ขาดการติดต่อ)',
           `ขาดการติดต่อจากบอร์ดมาแล้ว ${formatTimeDiff(diffSeconds)} (รายงานตัวล่าสุด: ${lastSeenDate.toLocaleTimeString('th-TH')})`);
       }
+
+      if (el.teleIpDetail) el.teleIpDetail.textContent = ip_address || '--';
+      if (el.teleRelayRssiVal) el.teleRelayRssiVal.textContent = rssi !== undefined ? rssi : '--';
+      if (el.teleRelayUptimeVal) el.teleRelayUptimeVal.textContent = uptime_sec !== undefined ? formatUptime(uptime_sec) : '--';
 
       // แสดงค่าเซนเซอร์จริงจากบอร์ด
       if (temperature !== undefined) {
@@ -558,10 +602,19 @@
         el.teleIp.textContent = `IP: ${ip_address}`;
       }
     } else {
-      // ยังไม่เคยมีข้อมูลจากบอร์ดจริง (หรือข้อมูลมาจาก mock setup)
-      setDeviceOnline(false, 'รอการเชื่อมต่อบอร์ด ESP32');
-      setEspBanner('waiting', '⏳', 'รอ ESP32 เชื่อมต่อและส่งข้อมูลครั้งแรก',
-        'ระบบไม่พบข้อมูลที่ส่งมาจากบอร์ด ESP32 จริง ค่าเซนเซอร์จะเริ่มแสดงเมื่อบอร์ดเริ่มทำงานจริงเท่านั้น เพื่อป้องกันการแสดงค่าสุ่ม/มั่ว');
+      // ยังไม่เคยมีข้อมูลจากบอร์ดรีเลย์
+      setDeviceOnline(false, 'บอร์ดรีเลย์: รอเชื่อมต่อ');
+      if (el.pillRelayBoard) {
+        el.pillRelayBoard.className = 'device-pill offline';
+        el.pillRelayBoard.textContent = 'รอเชื่อมต่อ';
+      }
+      if (el.deviceRelaySub) el.deviceRelaySub.textContent = 'ยังไม่พบข้อมูลจากบอร์ดรีเลย์';
+      if (el.teleIpDetail) el.teleIpDetail.textContent = '--';
+      if (el.teleRelayRssiVal) el.teleRelayRssiVal.textContent = '--';
+      if (el.teleRelayUptimeVal) el.teleRelayUptimeVal.textContent = '--';
+
+      setEspBanner('waiting', '⏳', 'รอ ESP32 รีเลย์เชื่อมต่อและส่งข้อมูลครั้งแรก',
+        'ระบบไม่พบข้อมูลที่ส่งมาจากบอร์ด ESP32 รีเลย์ ค่าเซนเซอร์จะเริ่มแสดงเมื่อบอร์ดเริ่มทำงานจริงเท่านั้น');
 
       el.teleTemp.textContent = '--.-';
       el.tempBar.style.width = '0%';
@@ -571,24 +624,96 @@
       el.teleRssiQuality.textContent = 'ยังไม่พบสัญญาณจากบอร์ด';
       el.teleUptime.textContent = '--';
       el.teleIp.textContent = 'IP: รอเชื่อมต่อ';
-      el.teleLastSeen.textContent = 'ยังไม่เคยเชื่อมต่อจริง';
+      if (el.teleLastSeen) el.teleLastSeen.textContent = 'ยังไม่เคยเชื่อมต่อจริง';
       if (el.glanceTemp) el.glanceTemp.textContent = '--.- °C';
       if (el.glanceWifiRssi) el.glanceWifiRssi.textContent = '-- dBm';
     }
 
-    if (currentSha) {
+    // 3. Touchscreen Display Board Status (ESP32 LVGL)
+    if (state.display && state.display.last_seen) {
+      const dispLastSeen = new Date(state.display.last_seen);
+      const dispDiffSec = (Date.now() - dispLastSeen.getTime()) / 1000;
+      const isDispOnline = dispDiffSec <= 90 && state.display.online !== false;
+
+      if (isDispOnline) {
+        setDisplayOnline(true, `จอสัมผัส: พร้อมใช้งาน (${Math.max(1, Math.round(dispDiffSec))} วิที่แล้ว)`);
+        if (el.pillDisplayBoard) {
+          el.pillDisplayBoard.className = 'device-pill online';
+          el.pillDisplayBoard.textContent = 'พร้อมใช้งาน';
+        }
+        if (el.deviceDisplaySub) el.deviceDisplaySub.textContent = 'พร้อมใช้งาน (ST7796 Touchscreen)';
+      } else {
+        setDisplayOnline(false, `จอสัมผัส: ออฟไลน์ (${formatTimeDiff(dispDiffSec)})`);
+        if (el.pillDisplayBoard) {
+          el.pillDisplayBoard.className = 'device-pill offline';
+          el.pillDisplayBoard.textContent = 'ออฟไลน์';
+        }
+        if (el.deviceDisplaySub) el.deviceDisplaySub.textContent = `ขาดการติดต่อ (${formatTimeDiff(dispDiffSec)})`;
+      }
+
+      if (el.teleDispIp) el.teleDispIp.textContent = state.display.ip_address || '--';
+      if (el.teleDispRssi) el.teleDispRssi.textContent = state.display.rssi !== undefined ? state.display.rssi : '--';
+      if (el.teleDispAction) {
+        el.teleDispAction.textContent = state.display.last_action || (state.meta && state.meta.updated_by === 'display_touch' ? 'กดสัมผัสหน้าจอ' : 'พร้อมรับคำสั่ง');
+      }
+    } else {
+      setDisplayOnline(false, 'จอสัมผัส: รอเชื่อมต่อ');
+      if (el.pillDisplayBoard) {
+        el.pillDisplayBoard.className = 'device-pill offline';
+        el.pillDisplayBoard.textContent = 'รอเชื่อมต่อ';
+      }
+      if (el.deviceDisplaySub) el.deviceDisplaySub.textContent = 'ยังไม่พบข้อมูลจากจอสัมผัส ESP32_LVGL';
+      if (el.teleDispIp) el.teleDispIp.textContent = '--';
+      if (el.teleDispRssi) el.teleDispRssi.textContent = '--';
+      if (el.teleDispAction) el.teleDispAction.textContent = '--';
+    }
+
+    // 4. Meta Information (Updated by & Commit SHA)
+    if (el.teleUpdatedBy) {
+      const updatedBy = state.meta && state.meta.updated_by ? state.meta.updated_by : '';
+      if (updatedBy === 'display_touch') {
+        el.teleUpdatedBy.innerHTML = '<span class="badge-actor display">🖥️ จอสัมผัส ESP32_LVGL</span>';
+      } else if (updatedBy === 'web_dashboard') {
+        el.teleUpdatedBy.innerHTML = '<span class="badge-actor web">🌐 หน้าเว็บ Dashboard</span>';
+      } else if (updatedBy === 'esp32_relay') {
+        el.teleUpdatedBy.innerHTML = '<span class="badge-actor relay">🔌 บอร์ดรีเลย์ ESP32</span>';
+      } else if (updatedBy) {
+        el.teleUpdatedBy.textContent = updatedBy;
+      } else {
+        el.teleUpdatedBy.textContent = 'ระบบ';
+      }
+    }
+
+    if (currentSha && el.teleSha) {
       el.teleSha.textContent = currentSha;
     }
   }
 
   function setDeviceOnline(isOnline, reason) {
+    if (!el.statusBadge) return;
     if (isOnline) {
       el.statusBadge.className = 'status-badge online';
-      el.statusText.textContent = reason || 'ESP32 ออนไลน์';
+      if (el.statusText) el.statusText.textContent = reason || 'บอร์ดรีเลย์: ออนไลน์';
     } else {
       el.statusBadge.className = 'status-badge offline';
-      el.statusText.textContent = reason || 'บอร์ดออฟไลน์';
+      if (el.statusText) el.statusText.textContent = reason || 'บอร์ดรีเลย์: ออฟไลน์';
     }
+  }
+
+  function setDisplayOnline(isOnline, reason) {
+    if (!el.displayStatusBadge) return;
+    if (isOnline) {
+      el.displayStatusBadge.className = 'status-badge online';
+      if (el.displayStatusText) el.displayStatusText.textContent = reason || 'จอสัมผัส: พร้อมใช้งาน';
+    } else {
+      el.displayStatusBadge.className = 'status-badge offline';
+      if (el.displayStatusText) el.displayStatusText.textContent = reason || 'จอสัมผัส: ออฟไลน์';
+    }
+  }
+
+  function formatRelaySummary(cmds) {
+    if (!cmds) return '';
+    return `R1:${cmds.relay1 ? 'ON' : 'OFF'} | R2:${cmds.relay2 ? 'ON' : 'OFF'} | R3:${cmds.relay3 ? 'ON' : 'OFF'} | R4:${cmds.relay4 ? 'ON' : 'OFF'}`;
   }
 
   function setEspBanner(status, icon, title, desc) {
