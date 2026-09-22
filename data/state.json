@@ -12,20 +12,20 @@
   "telemetry": {
     "temperature": 27.3,
     "humidity": 65.2,
-    "rssi": -59,
-    "last_seen": "2026-09-22T14:01:05Z"
+    "rssi": -60,
+    "last_seen": "2026-09-22T14:01:07Z"
   },
   "display": {
     "online": true,
-    "last_seen": "2026-09-22T14:01:05Z",
+    "last_seen": "2026-09-22T14:01:07Z",
     "ip_address": "192.168.1.175",
-    "rssi": -59,
-    "uptime_sec": 893,
-    "last_action": "Relay 1 OFF"
+    "rssi": -60,
+    "uptime_sec": 896,
+    "last_action": "Relay 4 OFF"
   },
   "meta": {
     "version": "1.1.0",
     "updated_by": "display_touch",
-    "updated_at": "2026-09-22T14:01:05Z"
+    "updated_at": "2026-09-22T14:01:07Z"
   }
 }
